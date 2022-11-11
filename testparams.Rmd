@@ -1,0 +1,79 @@
+---
+title: "Untitled"
+author: "umesh rao"
+date: "2022-11-11"
+output: html_document
+params:  
+    team: "data_channel_is_entertainment",
+    "data_channel_is_bus"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+
+```{r }
+library(tidyverse)
+library(caret)
+library(class)
+prjdata <- tbl_df(read_csv("OnlineNewsPopularity.csv",locale=locale(encoding="latin1")))
+lf<-select (prjdata,global_subjectivity,global_sentiment_polarity,global_rate_positive_words,global_rate_negative_words,shares,starts_with("data_channel_is_")) 
+lf1<-lf %>% pivot_longer(cols = 6:11, names_to = "data_channel", values_to = "temp")
+lf1 <- filter(lf1,temp==1)
+channel<-  lf1 %>% filter (data_channel==params$team)
+
+dataIndexL <- createDataPartition(channel$shares, p = 0.8, list = FALSE)
+dataTrainL <- lf[dataIndexL, ]
+dataTestL <- lf[-dataIndexL, ]
+
+summary(dataTrainL)
+
+
+g <- ggplot(dataTrainL, aes(x = rate_positive_words, y = shares))
+g + geom_point()
+## MLR using 2 predictors 
+
+mlr <- train(shares~.,data=dataTrainL, method="lm")
+
+pmlr<- predict(mlr,newdata = dataTestL)
+postResample(pmlr, dataTestL$shares)
+## mlr2
+mlr2<- train(shares~ global_rate_positive_words* global_subjectivity,data=dataTrainL,method="lm")
+pmlr2<- predict(mlr2,newdata = dataTestL)
+postResample(pmlr2, dataTestL$shares)
+#random Forest
+
+rfFitl <- train(shares ~ ., data = dataTrainL,
+               method = "rf",
+               trControl = trainControl(method = "cv",
+                                        number = 5),
+               preProcess = c("center", "scale"),
+               tuneGrid = data.frame(mtry = 1:5))
+
+predl <- predict(rfFitl, newdata = dataTestL)
+postResample(predl, dataTestL$shares)
+cmrfl <-table(dataTestL$shares, predl)
+cmrfl
+#boosted tree
+caretGridl <- expand.grid(interaction.depth=c(1,2,3,4), n.trees = c(25,50,100,150,200),
+                         shrinkage=c(0.1),
+                         n.minobsinnode=10)
+trainControll <- trainControl(method="cv", number=10)
+library(gbm)
+set.seed(99)
+btFitl <- train(shares ~ ., data = dataTrainL,
+               method = "gbm",
+               trControl = trainControll,
+               preProcess = c("center", "scale"),
+               tuneGrid = caretGridl)
+
+btpredl <- predict(btFitl, newdata = dataTestL)
+postResample(btpredl, dataTestL$shares)
+cmbl <- table(dataTestL$shares, btpredl)
+cmbl
+
+```
