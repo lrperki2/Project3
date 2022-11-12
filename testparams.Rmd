@@ -4,8 +4,7 @@ author: "umesh rao"
 date: "2022-11-11"
 output: html_document
 params:  
-    team: "data_channel_is_entertainment",
-    "data_channel_is_bus"
+      channel: "data_channel_is_entertainment"
 ---
 
 ```{r setup, include=FALSE}
@@ -24,8 +23,33 @@ prjdata <- tbl_df(read_csv("OnlineNewsPopularity.csv",locale=locale(encoding="la
 lf<-select (prjdata,global_subjectivity,global_sentiment_polarity,global_rate_positive_words,global_rate_negative_words,shares,starts_with("data_channel_is_")) 
 lf1<-lf %>% pivot_longer(cols = 6:11, names_to = "data_channel", values_to = "temp")
 lf1 <- filter(lf1,temp==1)
-channel<-  lf1 %>% filter (data_channel==params$team)
 
+#r markdown automation. Needs to run to get reports object before running the 2nd chunk below in console
+channelIDs <- unique(lf1$data_channel)
+output_file <- paste0(channelIDs, ".html")
+param_names <- lapply(channelIDs, FUN = function(x){list(channel = x)})
+channel <- lf1 %>% filter (data_channel == params$channel)
+reports <- tibble(output_file, param_names)
+channel
+```
+
+```{r, eval = FALSE}
+#run this in console for individual channel
+rmarkdown::render("testparams.Rmd", output_file = "entertainment.html",
+                   params = list(channel = "data_channel_is_entertainment"))
+
+#run this in console for all channels
+library(rmarkdown)
+
+apply(reports, MARGIN = 1,
+      FUN = function(x){
+        render(input = "testparams.Rmd", output_file = x[[1]], params = x[[2]])
+      }
+)
+```
+
+Set to eval = FALSE to test
+```{r, eval = FALSE}
 dataIndexL <- createDataPartition(channel$shares, p = 0.8, list = FALSE)
 dataTrainL <- lf[dataIndexL, ]
 dataTestL <- lf[-dataIndexL, ]
@@ -77,3 +101,4 @@ cmbl <- table(dataTestL$shares, btpredl)
 cmbl
 
 ```
+
