@@ -2,7 +2,11 @@
 title: "Project 3"
 author: "Umesh Rao & Luke Perkins"
 date: "2022-11-11"
-output: html_document
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: "show"
 params:  
       channel: "data_channel_is_entertainment"
 ---
@@ -82,21 +86,44 @@ apply(reports, MARGIN = 1,
 
 # Summarizations
 
-One strategy in exploring the data is to use a correlation matrix to view 
-potential linear relationships. Using `select()`, the full data set is subset to 
-variables which, based on description, are potential candidates for modeling. 
-The `shares` variable is also included as the target response variable. Many of 
-the variables share common prefixes, so the `starts_with()` function is used 
-to great effect. The `cor()` function creates a correlation matrix using the 
-Pearson correlation coefficient on the selected variables, and the matrix is 
-saved as `cor_mat`.
+## Correlations
 
-The `corr_plot()` function is used to create a visualization of the matrix, 
-taking the matrix itself as the first argument. The `type` argument is given as 
-`"lower"` to indicate the display should be the lower half, 
+One strategy in exploring the data is to use a correlation matrix to view 
+potential linear relationships as a baseline. Using `select()`, the full data 
+set is subset to drop `url`, `timedelta`, which is indicated in the variable 
+descriptions as non-predictive, and `data_channel`, as each analysis is split 
+on the level of this variable, so the values will all be the same. The 
+`cor()` function creates a correlation matrix using the Pearson correlation 
+coefficient, and the matrix is saved as `cor_mat`.
+
+Because the number of variables is large, the `png()` function is called to 
+adjust the `width` and `height` of the correlation plot, and the file is saved 
+as "corrplot.png". The `corr_plot()` function is used to create a visualization 
+of the matrix, taking the matrix itself as the first argument. The `type` 
+argument is given as `"lower"` to indicate the display should be the lower half, 
 `tl.pos` as `"ld"` specifies the text label positions as left and diagonal, 
 `title` is used to give a relevant title, and `mar` adjusts the margins so that 
-the title is visible.
+the title is visible. The `dev.off()` function closes the graphics device so 
+that the image can render, and `include_graphics()` prints the plot image.
+
+```{r}
+summary(channel)
+
+cor_mat <- channel %>% 
+  select(-url, -data_channel, -timedelta) %>%
+  cor()
+
+png(filename = "corrplot.png", width = 1200, height = 800)
+corrplot(cor_mat,
+         type = "lower",
+         tl.pos = "ld",
+         tl.cex = 0.9,
+         mar = c(0, 0, 2, 0),
+         title = "Correlation Coefficients for Online News Popularity",
+)
+dev.off()
+knitr::include_graphics("corrplot.png")
+```
 
 Dark blue circles indicate there is a strong positive linear relationship 
 between the variables, dark red indicates a strong negative linear relationship, 
@@ -107,41 +134,143 @@ polarity. The rest of the variables have weaker relationships, indicating there
 is little risk of multicollinearity if variables from different subject matters 
 are chosen.
 
-PLACEHOLDER for cor
+To aid in selection, a tibble of top correlations with the `shares` variable is 
+generated. First, the names of the variables are taken from the correlation 
+matrix using `row.names()`, then the values of the correlations across all 
+variables with respect to `shares` is taken by using `bind_cols` and returning 
+the `shares` column with index 53. The values are then sorted with `arrange()`, 
+in descending order with `desc()`, and the top 20 rows are returned with 
+`head()`. The tibble is then printed for viewing.
+
+Variables are chosen from different subject matters to avoid colinearity, so 
+from this list, one from each general area is selected, in addition to the 
+target variable, then the subset of the data set is saved and a correlation 
+matrix on the subset is printed as a data frame.
+
+Another correlation plot is generated on the smaller set of variables using 
+`corrplot()`, and we can confirm that the variables are within acceptable 
+ranges of correlation to each other.
 
 ```{r}
-summary(channel)
-
-cor_mat <- channel %>% 
-  select(starts_with("kw_"),
-         starts_with("weekday_is"),
-         starts_with("is_weekend"),
-         starts_with("global_"),
-         starts_with("rate_"),
-         starts_with("abs_"),
-         starts_with("title_"),
-         starts_with("avg_"),
-         starts_with("min"),
-         starts_with("max"),
-         shares) %>%
-  cor()
-
-corrplot(cor_mat,
-         type = "lower",
-         tl.pos = "ld",
-         tl.cex = 0.6,
-         title = "Correlation Coefficients for Online News Popularity",
-         mar = c(0,0,2,0)
-)
-
-#Take the vars with highest correlations to shares(shares also included for subsetting later). Need to remove highly correlated vars like kw_max_max and kw_min_min, etc.
 top_cors <- cor_mat %>%
   row.names() %>%
-  bind_cols("values" = cor_mat[ ,34]) %>%
+  bind_cols("values" = cor_mat[ ,53]) %>%
   arrange(desc(values)) %>%
-  head(n = 7)
-top_cor_vars <- top_cors[[1]]
-top_cor_vars
+  head(n = 20)
+top_cors
+
+subset_channel <- channel %>%
+  select(kw_avg_avg, self_reference_avg_sharess, num_hrefs, num_imgs, 
+         global_subjectivity, is_weekend, avg_positive_polarity, shares)
+data.frame(cor(subset_channel))
+
+corrplot(cor(subset_channel),
+         type = "lower",
+         tl.pos = "ld",
+         tl.cex = 0.9,
+         mar = c(0, 0, 2, 0),
+         title = "Correlation Coefficients for Online News Popularity",
+)
+```
+
+## Histogram
+
+To look at some other summaries of the data, it may be useful to consider the 
+distribution of the response variable. First, five number summaries of all of 
+the variables of interest are taken with the `summary()` function. Means greater 
+than comparative medians could indicate positive skew, and extremely large 
+maximum values in relation to the other percentiles could be a sign of heavy 
+skew.
+
+A histogram of the number of shares is generated with `ggplot()`. The range of 
+share values is mapped to the x axis via `aes()` argument, and the base plotting 
+object is saved. From the base object, a histogram layer is added with 
+`geom_histogram()`. The color is set to red via `fill` argument, and a title is 
+added using its respective argument in the `labs()` layer. If the histogram is 
+skewed to the right, that indicates that most articles have fewer shares across 
+the full range of number of shares, and fewer articles have many shares. If the 
+peak is in the middle, it would indicate that most articles are in the middle 
+of the spectrum in terms of share counts, and if it the peak is on the right, it 
+indicates that most articles are highly shared and fewer are less shared.
+
+```{r}
+summary(subset_channel)
+
+g <- ggplot(data = subset_channel, aes(x = shares))
+g + geom_histogram(fill = "red") +
+  labs(title = "Histogram of Shares")
+```
+
+## Contingency Table
+
+It might be interesting to look at the number of shares depending on whether 
+the article was published on a weekend or not. To view the `share` variable in 
+another way, it can be divided along its quartiles with the `cut()` function. 
+Taking the `shares` variable as its first argument, `cut()` then uses 
+`quantile()` to split up the variable into value ranges, taking a vector of 
+quantiles with the `probs()` argument. The object is saved, and used in the 
+`table()` function to make a contingency table against the `is_weekend` 
+variable. `rbind()` takes the table and uses `apply()` to add the proportion of 
+number of weekend shares of the total split. The `MARGIN` argument is set to 2 
+to indicate column proportions are being calculated, and the `FUN` argument 
+takes in the function to apply: in this case, the number of weekend shares 
+divided by the sum of shares for the split, rounded to 3 decimals. Proportions 
+trending higher from left to right indicate that it is more common for articles 
+with higher shares to be published on a weekend for that particular data 
+channel, and proportions trending lower from left to right indicate the 
+converse. If neither case is true, there may be no clear pattern.
+
+```{r}
+quart_shares <- cut(subset_channel$shares, 
+                    breaks = quantile(subset_channel$shares, 
+                                      probs = c(0, 0.25, 0.5, 0.75, 1)))
+tab <- table(subset_channel$is_weekend, quart_shares)
+rbind(tab, apply(tab, MARGIN = 2, FUN = function(x){round(x[2] / sum(x), 3)}))
+```
+
+## Box plot
+
+Another interesting grouping is to examine shares by the number of images. 
+Many articles do not use images at all, so it may be interesting to contrast 
+those that do with those that do not. The `cut()` function is used to split the 
+variable of interest again, this time from 0 to 1 or more. The `labels` argument 
+is used to give labels for cleaner plots, and `right` is set to `FALSE` to make 
+the splits exclude the right value, meaning 0 is the first split, and the second 
+split starts at 1. A base plotting object is created again, this time mapping 
+the cut variable `img_split` on the x axis, and the number of shares on the y 
+axis. A box plot layer is added with `geom_boxplot()`, mapping the split levels 
+as the color. Labels for the x axis added and title are added with the `labs()` 
+function.
+
+Because the distribution of shares could be highly skewed, there may be many 
+outliers and the box plot may not be visually appealing or useful. Although 
+outliers should not be removed without cause, to gain a better view of the data, 
+a consideration may be to view the box plot without them. A similar box plot 
+with the same syntax, but adding a coordinate layer with `coord_cartesian()` is 
+generated, specifying the `ylim` argument to range from 0 to the 90th 
+percentile of `shares` to show a better scale that hides some outliers. Many 
+points above the boxes, a long tail above the box plots, or the median line 
+being located towards the bottom of the boxes could indicate positive skew. 
+Points towards the bottom would, a long tail below the box plots, or the median 
+line being indicated towards the top of the boxes could indicate negative skew. 
+Relatively symmetric tails, a median close to the center of the boxes, and few 
+outliers would indicate a symmetric distribution.
+
+```{r}
+img_split <- cut(subset_channel$num_imgs, 
+                 breaks = c(-Inf, 1, Inf),
+                 labels = c("0", "1 or more"),
+                 right = FALSE)
+g <- ggplot(data = subset_channel, aes(x = img_split, y = shares))
+g + geom_boxplot(aes(color = img_split)) +
+  labs(title = "Boxplot of shares by number of images",
+       x = "Number of images")
+
+g <- ggplot(data = subset_channel, aes(x = img_split, y = shares))
+g + geom_boxplot(aes(color = img_split)) +
+  labs(title = "Boxplot of shares by number of images",
+       x = "Number of images") +
+  coord_cartesian(ylim = c(0, quantile(subset_channel$shares, 0.90)))
 ```
 
 # Modeling
@@ -150,12 +279,10 @@ Set to eval = FALSE to test
 ```{r, eval = FALSE}
 #lf needs to be channel to subset, need to include shares in original data
 #drop channel name for modeling
-channel2 <- channel %>% 
-  select(top_cor_vars)
 
-dataIndexL <- createDataPartition(channel2$shares, p = 0.7, list = FALSE)
-dataTrainL <- channel2[dataIndexL, ]
-dataTestL <- channel2[-dataIndexL, ]
+dataIndexL <- createDataPartition(subset_channel$shares, p = 0.7, list = FALSE)
+dataTrainL <- subset_channel[dataIndexL, ]
+dataTestL <- subset_channel[-dataIndexL, ]
 
 summary(dataTrainL)
 
@@ -175,6 +302,7 @@ pmlr2<- predict(mlr2, newdata = dataTestL)
 postResample(pmlr2, dataTestL$shares)
 #random Forest
 #updated number to 3 to run faster, can change before submission.
+set.seed(99)
 rfFitl <- train(shares ~ ., data = dataTrainL,
                 method = "rf",
                 trControl = trainControl(method = "cv",
@@ -187,6 +315,7 @@ postResample(predl, dataTestL$shares)
 cmrfl <- table(dataTestL$shares, predl)
 cmrfl
 #boosted tree
+set.seed(99)
 caretGridl <- expand.grid(interaction.depth =c (1,2,3,4), 
                           n.trees = c(25,50,100,150,200),
                           shrinkage = c(0.1),
