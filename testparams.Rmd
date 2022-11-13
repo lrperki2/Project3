@@ -1,6 +1,6 @@
 ---
-title: "Untitled"
-author: "umesh rao"
+title: "Project 3"
+author: "Umesh Rao & Luke Perkins"
 date: "2022-11-11"
 output: html_document
 params:  
@@ -8,35 +8,67 @@ params:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warnings = FALSE, message = FALSE)
 ```
 
-## R Markdown
+# Introduction
 
+# Data
 
+To begin, we load in relevant packages with `library()` statements. Then, 
+`read_csv()` and a relative path is used to read in the data. `pivot_longer()` 
+is used to reshape the six dummy variables indicating the data channel into one 
+column. The `cols` argument specifies the data to restructure from rows to 
+columns, `names_to` names the column containing the column names from the 
+original data, and `values_to` names the column containing the actual values 
+being reshaped. `filter()` is then used to subset the data to only rows where 
+the reshaped values are 1, as in the 'long' data format, those are the only 
+rows of interest. The `temp` variable containing the indicator values is then 
+dropped and the object is saved.
 
 ```{r }
 library(tidyverse)
 library(caret)
 library(class)
-prjdata <- tbl_df(read_csv("OnlineNewsPopularity.csv",locale=locale(encoding="latin1")))
-lf<-select (prjdata,global_subjectivity,global_sentiment_polarity,global_rate_positive_words,global_rate_negative_words,shares,starts_with("data_channel_is_")) 
-lf1<-lf %>% pivot_longer(cols = 6:11, names_to = "data_channel", values_to = "temp")
-lf1 <- filter(lf1,temp==1)
+library(corrplot)
 
+news_pop <- read_csv("OnlineNewsPopularity.csv") %>%
+  pivot_longer(cols = 14:19, 
+               names_to = "data_channel", 
+               values_to = "temp") %>%
+  filter(temp == 1) %>%
+  select(-temp)
+```
+
+# Automation
+
+The R Markdown is automated by generating separate reports and analyses by each 
+level of a parameter, in this case, the `data_channel`. First, the `unique()` 
+function is used to generate a list of unique values for `data_channel`. Then, 
+`paste0` concatenates the file extension to the end of each channel ID. 
+`lapply()` takes each concatenated name and extension, and applies the `list` 
+function to convert each one into a named list object with one element. A tibble 
+is then created containing the the output file name and the one item list of 
+the parameterized `data_channel` value. The full data set `news_pop` then uses 
+`filter()` to subset records to the `data_channel` variable currently reflected 
+in the `params` argument in the R Markdown document, and is saved as `channel`.
+
+```{r}
 #r markdown automation. Needs to run to get reports object before running the 2nd chunk below in console
-channelIDs <- unique(lf1$data_channel)
+channelIDs <- unique(news_pop$data_channel)
 output_file <- paste0(channelIDs, ".html")
 param_names <- lapply(channelIDs, FUN = function(x){list(channel = x)})
-channel <- lf1 %>% filter (data_channel == params$channel)
 reports <- tibble(output_file, param_names)
-channel
+channel <- news_pop %>% filter(data_channel == params$channel)
 ```
+
+PLACEHOLDER
 
 ```{r, eval = FALSE}
 #run this in console for individual channel
-rmarkdown::render("testparams.Rmd", output_file = "entertainment.html",
-                   params = list(channel = "data_channel_is_entertainment"))
+rmarkdown::render("testparams.Rmd", 
+                  output_file = "data_channel_is_entertainment.html",
+                  params = list(channel = "data_channel_is_entertainment"))
 
 #run this in console for all channels
 library(rmarkdown)
@@ -48,52 +80,125 @@ apply(reports, MARGIN = 1,
 )
 ```
 
+# Summarizations
+
+One strategy in exploring the data is to use a correlation matrix to view 
+potential linear relationships. Using `select()`, the full data set is subset to 
+variables which, based on description, are potential candidates for modeling. 
+The `shares` variable is also included as the target response variable. Many of 
+the variables share common prefixes, so the `starts_with()` function is used 
+to great effect. The `cor()` function creates a correlation matrix using the 
+Pearson correlation coefficient on the selected variables, and the matrix is 
+saved as `cor_mat`.
+
+The `corr_plot()` function is used to create a visualization of the matrix, 
+taking the matrix itself as the first argument. The `type` argument is given as 
+`"lower"` to indicate the display should be the lower half, 
+`tl.pos` as `"ld"` specifies the text label positions as left and diagonal, 
+`title` is used to give a relevant title, and `mar` adjusts the margins so that 
+the title is visible.
+
+Dark blue circles indicate there is a strong positive linear relationship 
+between the variables, dark red indicates a strong negative linear relationship, 
+and lighter shades of either color indicate weaker linear relationships. From 
+the plot, the strongest linear relationships are between related variables, like 
+each of the days of the week, different measures of keywords, or measures of 
+polarity. The rest of the variables have weaker relationships, indicating there 
+is little risk of multicollinearity if variables from different subject matters 
+are chosen.
+
+PLACEHOLDER for cor
+
+```{r}
+summary(channel)
+
+cor_mat <- channel %>% 
+  select(starts_with("kw_"),
+         starts_with("weekday_is"),
+         starts_with("is_weekend"),
+         starts_with("global_"),
+         starts_with("rate_"),
+         starts_with("abs_"),
+         starts_with("title_"),
+         starts_with("avg_"),
+         starts_with("min"),
+         starts_with("max"),
+         shares) %>%
+  cor()
+
+corrplot(cor_mat,
+         type = "lower",
+         tl.pos = "ld",
+         tl.cex = 0.6,
+         title = "Correlation Coefficients for Online News Popularity",
+         mar = c(0,0,2,0)
+)
+
+#Take the vars with highest correlations to shares(shares also included for subsetting later). Need to remove highly correlated vars like kw_max_max and kw_min_min, etc.
+top_cors <- cor_mat %>%
+  row.names() %>%
+  bind_cols("values" = cor_mat[ ,34]) %>%
+  arrange(desc(values)) %>%
+  head(n = 7)
+top_cor_vars <- top_cors[[1]]
+top_cor_vars
+```
+
+# Modeling
+
 Set to eval = FALSE to test
 ```{r, eval = FALSE}
-dataIndexL <- createDataPartition(channel$shares, p = 0.8, list = FALSE)
-dataTrainL <- lf[dataIndexL, ]
-dataTestL <- lf[-dataIndexL, ]
+#lf needs to be channel to subset, need to include shares in original data
+#drop channel name for modeling
+channel2 <- channel %>% 
+  select(top_cor_vars)
+
+dataIndexL <- createDataPartition(channel2$shares, p = 0.7, list = FALSE)
+dataTrainL <- channel2[dataIndexL, ]
+dataTestL <- channel2[-dataIndexL, ]
 
 summary(dataTrainL)
 
-
-g <- ggplot(dataTrainL, aes(x = rate_positive_words, y = shares))
-g + geom_point()
+#g <- ggplot(dataTrainL, aes(x = rate_positive_words, y = shares))
+#g + geom_point()
 ## MLR using 2 predictors 
 
 mlr <- train(shares~.,data=dataTrainL, method="lm")
 
-pmlr<- predict(mlr,newdata = dataTestL)
+pmlr <- predict(mlr, newdata = dataTestL)
 postResample(pmlr, dataTestL$shares)
 ## mlr2
-mlr2<- train(shares~ global_rate_positive_words* global_subjectivity,data=dataTrainL,method="lm")
-pmlr2<- predict(mlr2,newdata = dataTestL)
+mlr2<- train(shares~ kw_avg_avg * global_subjectivity, 
+             data = dataTrainL, 
+             method="lm")
+pmlr2<- predict(mlr2, newdata = dataTestL)
 postResample(pmlr2, dataTestL$shares)
 #random Forest
-
+#updated number to 3 to run faster, can change before submission.
 rfFitl <- train(shares ~ ., data = dataTrainL,
-               method = "rf",
-               trControl = trainControl(method = "cv",
-                                        number = 5),
-               preProcess = c("center", "scale"),
-               tuneGrid = data.frame(mtry = 1:5))
+                method = "rf",
+                trControl = trainControl(method = "cv",
+                                         number = 3),
+                preProcess = c("center", "scale"),
+                tuneGrid = data.frame(mtry = 1:5))
 
 predl <- predict(rfFitl, newdata = dataTestL)
 postResample(predl, dataTestL$shares)
-cmrfl <-table(dataTestL$shares, predl)
+cmrfl <- table(dataTestL$shares, predl)
 cmrfl
 #boosted tree
-caretGridl <- expand.grid(interaction.depth=c(1,2,3,4), n.trees = c(25,50,100,150,200),
-                         shrinkage=c(0.1),
-                         n.minobsinnode=10)
-trainControll <- trainControl(method="cv", number=10)
+caretGridl <- expand.grid(interaction.depth =c (1,2,3,4), 
+                          n.trees = c(25,50,100,150,200),
+                          shrinkage = c(0.1),
+                          n.minobsinnode = 10)
+trainControll <- trainControl(method="cv", number = 10)
 library(gbm)
 set.seed(99)
 btFitl <- train(shares ~ ., data = dataTrainL,
-               method = "gbm",
-               trControl = trainControll,
-               preProcess = c("center", "scale"),
-               tuneGrid = caretGridl)
+                method = "gbm",
+                trControl = trainControll,
+                preProcess = c("center", "scale"),
+                tuneGrid = caretGridl)
 
 btpredl <- predict(btFitl, newdata = dataTestL)
 postResample(btpredl, dataTestL$shares)
@@ -101,4 +206,5 @@ cmbl <- table(dataTestL$shares, btpredl)
 cmbl
 
 ```
+
 
