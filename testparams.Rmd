@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, warnings = FALSE, message = FALSE)
 
 # Introduction
 
-# Data
+# Data Reading and Formatting
 
 To begin, we load in relevant packages with `library()` statements. Then, 
 `read_csv()` and a relative path is used to read in the data. `pivot_longer()` 
@@ -44,7 +44,7 @@ news_pop <- read_csv("OnlineNewsPopularity.csv") %>%
   select(-temp)
 ```
 
-# Automation
+# R Markdown Automation
 
 The R Markdown is automated by generating separate reports and analyses by each 
 level of a parameter, in this case, the `data_channel`. First, the `unique()` 
@@ -180,7 +180,7 @@ distribution of the response variable. First, five number summaries of all of
 the variables of interest are taken with the `summary()` function. Means greater 
 than comparative medians could indicate positive skew, and extremely large 
 maximum values in relation to the other percentiles could be a sign of heavy 
-skew.
+skew. Means lower than comparative medians could indicate negative skew.
 
 A histogram of the number of shares is generated with `ggplot()`. The range of 
 share values is mapped to the x axis via `aes()` argument, and the base plotting 
@@ -275,65 +275,158 @@ g + geom_boxplot(aes(color = img_split)) +
 
 # Modeling
 
+## Regression
+
+To model the data, first it needs to be split into a training set and test set. 
+The `createDataPartition()` takes the `shares` variable and samples 70% of the 
+indices by passing 0.7 to the `p` argument, and lastly, outputs the results as 
+a matrix by setting the `list` argument to `FALSE`. The indices are saved and 
+used to subset the data set on the variables of interest by using the `[` 
+function and accessing the indices as the rows. The training set is saved, and 
+the same method is used to obtain a test set, but using the `-` function to 
+access the indices that were not sampled.
+
+The `train()` function fits a multiple linear regression model of `shares`, 
+modeled by the remaining main effect terms of the variables chosen during the 
+correlation section above. The data used is the training set, and the 
+`method` argument is passed "lm" to indicate a linear model. The model is saved 
+as `mlr`.
+
+**Aside**: 
+Linear regression is a supervised learning technique where the value of the of a 
+response variable is modeled or predicted by an explanatory variable by fitting 
+a linear equation to observed data. The equation of the line can be modeled 
+generically by: `Y~i~ = B~0~ + B~1~x~i~ + E~i~ where Y~i~` is the response for 
+the i^th^ observation, `x~i~` is the value of the explanatory variable for the 
+i^th^ observation, `B~0~` is the y-intercept, `B~1~` is the slope, and `E~i~` is 
+the error. The line of best fit is found by minimizing the sum of squared 
+differences between the observed values and the predicted values on the line 
+itself.
+
+The modeled regression line is used to predict on the test data set using the
+`predict()` function. Those predictions are then evaluated for prediction error 
+by being passed as the first argument of `postResample()` with the actual 
+`shares` observations as the second argument. RMSE, Rsquared, and MAE are 
+output. 
+
+A second multiple linear regression model is fitted, predicted on, and evaluated 
+using the same methodology and syntax, but uses all main effects and all 
+interaction terms via `~.^2` in the formula argument.
+
+```{r}
+dataIndex <- createDataPartition(subset_channel$shares, p = 0.7, list = FALSE)
+dataTrain <- subset_channel[dataIndex, ]
+dataTest <- subset_channel[-dataIndex, ]
+
+mlr <- train(shares ~., data = dataTrain, method ="lm")
+pmlr <- predict(mlr, newdata = dataTest)
+postResample(pmlr, dataTest$shares)
+
+mlr2<- train(shares ~.^2, data = dataTrain, method ="lm")
+pmlr2<- predict(mlr2, newdata = dataTest)
+postResample(pmlr2, dataTest$shares)
+```
+
+## Ensemble Tree Methods
+
+### Random Forest
+
+**Explanation:** A random forest model is an ensemble learning method where 
+many trees are fitted and their results are averaged. The basic concept is that 
+given a sample, that sample is resampled in the same manner as the original 
+repeatedly. The samples are taken with replacement, so that duplicate 
+observations may be present, and some observations may be omitted. A tree is 
+then trained on each sample, called a bootstrap sample, using a random subset 
+of the variables. This is done to reduce variance; if a dominant predictor is 
+present most of the trees will use the same first splits, and will be highly 
+correlated. After all of the predictions are done, the final predictions are the 
+average of all the individual tree predictions, or if using a classification 
+prediction, the final prediction is the majority vote by all trees.
+
+Before fitting the tree model, a random number generator seed is first set to 
+reproduce the random aspects of the training. The `train()` function then takes 
+in the response modeled by all predictors. The `data` argument passes the 
+training set and `method` specifies `rf` for random forest. `trControl` passes 
+training parameters, produced by the `trainControl()` argument, where `method` 
+and `number` specify the resampling method as cross validation and the number of 
+folds, respectively. `preProcess` passes a vector of `"center"` and `"scale"` to 
+center and scale the data, and those values are saved and also used to process 
+the testing data later. `tuneGrid` passes a data frame of tuning parameters; for 
+random forests, the parameters are the number of random variables to try, 
+labeled as `mtry`, and given as a sequence. The fit is then saved.
+
+Predictions are made from the random forest fit using the `predict()` function 
+and the results are evaluated. The same methodology and syntax from the linear 
+modeling is used.
+
 Set to eval = FALSE to test
 ```{r, eval = FALSE}
-#lf needs to be channel to subset, need to include shares in original data
-#drop channel name for modeling
-
-dataIndexL <- createDataPartition(subset_channel$shares, p = 0.7, list = FALSE)
-dataTrainL <- subset_channel[dataIndexL, ]
-dataTestL <- subset_channel[-dataIndexL, ]
-
-summary(dataTrainL)
-
-#g <- ggplot(dataTrainL, aes(x = rate_positive_words, y = shares))
-#g + geom_point()
-## MLR using 2 predictors 
-
-mlr <- train(shares~.,data=dataTrainL, method="lm")
-
-pmlr <- predict(mlr, newdata = dataTestL)
-postResample(pmlr, dataTestL$shares)
-## mlr2
-mlr2<- train(shares~ kw_avg_avg * global_subjectivity, 
-             data = dataTrainL, 
-             method="lm")
-pmlr2<- predict(mlr2, newdata = dataTestL)
-postResample(pmlr2, dataTestL$shares)
 #random Forest
-#updated number to 3 to run faster, can change before submission.
+#updated number to 3 to run faster, can change to 5 before submission.
 set.seed(99)
-rfFitl <- train(shares ~ ., data = dataTrainL,
-                method = "rf",
-                trControl = trainControl(method = "cv",
-                                         number = 3),
-                preProcess = c("center", "scale"),
-                tuneGrid = data.frame(mtry = 1:5))
+rfFit <- train(shares ~ ., data = dataTrain,
+               method = "rf",
+               trControl = trainControl(method = "cv",
+                                        number = 3),
+               preProcess = c("center", "scale"),
+               tuneGrid = data.frame(mtry = 1:6))
 
-predl <- predict(rfFitl, newdata = dataTestL)
-postResample(predl, dataTestL$shares)
-cmrfl <- table(dataTestL$shares, predl)
-cmrfl
-#boosted tree
-set.seed(99)
-caretGridl <- expand.grid(interaction.depth =c (1,2,3,4), 
-                          n.trees = c(25,50,100,150,200),
-                          shrinkage = c(0.1),
-                          n.minobsinnode = 10)
-trainControll <- trainControl(method="cv", number = 10)
+pred <- predict(rfFit, newdata = dataTest)
+postResample(pred, dataTest$shares)
+```
+
+### Boosted Trees
+
+**Explanation:** A boosted tree model is an ensemble learning method wherein 
+trees are fitted sequentially, and each tree is fitted based on the previous 
+one, updated by predictions each time. The general concept is that the trees 
+are fitted, given a specified number of splits, based on residuals of 
+predictions that are updated slowly. In detail, first the predictions are 
+initialized to 0, then the residuals are calculated, then trees are fitted on 
+the residuals, then the predictions are updated to the predictions prior to the 
+residuals prior to the fitting plus the new predictions multiplied by a 
+shrinkage parameter to slow the growth. Then, the residuals to fit the next tree 
+on are updated from the new predictions, an the process repeats until a 
+predefined stopping point.
+
+Before fitting the boosted tree, a grid of tuning parameters is generated with 
+the `expand.grid()` function, which outputs all possible combinations of the 
+vectors passed. This fits trees on each combination so that the best model can 
+be chosen. Because they are being used in the `tuneGrid` argument, the 
+vectors are named explicitly. The tuning parameters are as follows:  
+
+  + `n.trees` is the number of trees to fit sequentially.  
+  + `interaction.depth` is the maximum depth of each tree, or the highest level of variable interactions allowed.  
+  + `shrinkage` is the shrinkage parameter, or the multiplier to use to update predictions after each sequential fit.  
+  + `n.minobsinnode` is the minimum number of observations allowed in the terminal nodes of each tree.
+
+The grid is saved, and then the `trainControl()` function again chooses the 
+training parameters, this time with 10 folds. The `gbm` package is then read in 
+to be used with the `train()` function, and the random number generator seed is 
+reset. The `train()` function uses the same syntax before, but this time 
+indicates `"gbm"` as the method, the `tuneGrid` argument is passed the 
+expanded grid, and `verbose` is set to `FALSE` to hide the outputs of every fit. 
+The predictions are then generated and evaluated using the same syntax and 
+methodology previously.
+
+```{r}
+caretGrid <- expand.grid(interaction.depth = c(1,2,3,4), 
+                         n.trees = c(25,50,100,150,200),
+                         shrinkage = 0.1,
+                         n.minobsinnode = 10)
+trainControl <- trainControl(method ="cv", number = 10)
+
 library(gbm)
 set.seed(99)
-btFitl <- train(shares ~ ., data = dataTrainL,
-                method = "gbm",
-                trControl = trainControll,
-                preProcess = c("center", "scale"),
-                tuneGrid = caretGridl)
+btFit <- train(shares ~ ., data = dataTrain,
+               method = "gbm",
+               trControl = trainControl,
+               preProcess = c("center", "scale"),
+               tuneGrid = caretGrid,
+               verbose = FALSE)
 
-btpredl <- predict(btFitl, newdata = dataTestL)
-postResample(btpredl, dataTestL$shares)
-cmbl <- table(dataTestL$shares, btpredl)
-cmbl
-
+btpred <- predict(btFit, newdata = dataTest)
+postResample(btpred, dataTest$shares)
 ```
 
 
