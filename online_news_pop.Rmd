@@ -441,8 +441,8 @@ Predictions are made from the random forest fit using the `predict()` function
 and the results are evaluated. The same methodology and syntax from the linear 
 modeling is used.
 
-Set to eval = FALSE to test
 ```{r, eval = FALSE}
+#Set eval = FALSE to test
 #random Forest
 #updated number to 3 to run faster, can change to 5 before submission.
 set.seed(99)
