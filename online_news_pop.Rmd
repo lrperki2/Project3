@@ -3,7 +3,7 @@ title: "Project 3"
 author: "Umesh Rao & Luke Perkins"
 date: "2022-11-11"
 output: 
-  html_document:
+  github_document:
     toc: true
     toc_float: true
     code_folding: "show"
@@ -33,8 +33,9 @@ dropped and the object is saved.
 ```{r }
 library(tidyverse)
 library(caret)
-library(class)
 library(corrplot)
+library(randomForest)
+library(gbm)
 
 news_pop <- read_csv("OnlineNewsPopularity.csv") %>%
   pivot_longer(cols = 14:19, 
@@ -44,7 +45,7 @@ news_pop <- read_csv("OnlineNewsPopularity.csv") %>%
   select(-temp)
 ```
 
-# R Markdown Automation
+# R Markdown Automating
 
 The R Markdown is automated by generating separate reports and analyses by each 
 level of a parameter, in this case, the `data_channel`. First, the `unique()` 
@@ -58,7 +59,6 @@ the parameterized `data_channel` value. The full data set `news_pop` then uses
 in the `params` argument in the R Markdown document, and is saved as `channel`.
 
 ```{r}
-#r markdown automation. Needs to run to get reports object before running the 2nd chunk below in console
 channelIDs <- unique(news_pop$data_channel)
 output_file <- paste0(channelIDs, ".html")
 param_names <- lapply(channelIDs, FUN = function(x){list(channel = x)})
@@ -66,25 +66,7 @@ reports <- tibble(output_file, param_names)
 channel <- news_pop %>% filter(data_channel == params$channel)
 ```
 
-PLACEHOLDER
-
-```{r, eval = FALSE}
-#run this in console for individual channel
-rmarkdown::render("testparams.Rmd", 
-                  output_file = "data_channel_is_entertainment.html",
-                  params = list(channel = "data_channel_is_entertainment"))
-
-#run this in console for all channels
-library(rmarkdown)
-
-apply(reports, MARGIN = 1,
-      FUN = function(x){
-        render(input = "testparams.Rmd", output_file = x[[1]], params = x[[2]])
-      }
-)
-```
-
-# Summarizations
+# Summarizing
 
 ## Correlations
 
@@ -98,7 +80,8 @@ coefficient, and the matrix is saved as `cor_mat`.
 
 Because the number of variables is large, the `png()` function is called to 
 adjust the `width` and `height` of the correlation plot, and the file is saved 
-as "corrplot.png". The `corr_plot()` function is used to create a visualization 
+as a concatenation of the channel name, accessed with `params`, and 
+"corrplot.png". The `corr_plot()` function is used to create a visualization 
 of the matrix, taking the matrix itself as the first argument. The `type` 
 argument is given as `"lower"` to indicate the display should be the lower half, 
 `tl.pos` as `"ld"` specifies the text label positions as left and diagonal, 
@@ -113,7 +96,8 @@ cor_mat <- channel %>%
   select(-url, -data_channel, -timedelta) %>%
   cor()
 
-png(filename = "corrplot.png", width = 1200, height = 800)
+png(filename = paste0(params$channel, "corrplot.png"), 
+    width = 1200, height = 800)
 corrplot(cor_mat,
          type = "lower",
          tl.pos = "ld",
@@ -122,7 +106,7 @@ corrplot(cor_mat,
          title = "Correlation Coefficients for Online News Popularity",
 )
 dev.off()
-knitr::include_graphics("corrplot.png")
+knitr::include_graphics(paste0(params$channel, "corrplot.png"))
 ```
 
 Dark blue circles indicate there is a strong positive linear relationship 
@@ -142,14 +126,15 @@ the `shares` column with index 53. The values are then sorted with `arrange()`,
 in descending order with `desc()`, and the top 20 rows are returned with 
 `head()`. The tibble is then printed for viewing.
 
-Variables are chosen from different subject matters to avoid colinearity, so 
-from this list, one from each general area is selected, in addition to the 
-target variable, then the subset of the data set is saved and a correlation 
+In addition to using general knowledge about the content in variable selection, 
+variables are chosen from different subject matters to avoid colinearity. So, 
+from this list, one variable from each general area is selected, in addition to 
+the target variable, then the subset of the data set is saved and a correlation 
 matrix on the subset is printed as a data frame.
 
 Another correlation plot is generated on the smaller set of variables using 
-`corrplot()`, and we can confirm that the variables are within acceptable 
-ranges of correlation to each other.
+`corrplot()`, and the results should ideally confirm that the variables are 
+within acceptable ranges of correlation to each other.
 
 ```{r}
 top_cors <- cor_mat %>%
@@ -191,7 +176,8 @@ skewed to the right, that indicates that most articles have fewer shares across
 the full range of number of shares, and fewer articles have many shares. If the 
 peak is in the middle, it would indicate that most articles are in the middle 
 of the spectrum in terms of share counts, and if it the peak is on the right, it 
-indicates that most articles are highly shared and fewer are less shared.
+indicates that most articles are highly shared and fewer are less shared. 
+Multiple peaks or modes could signify multiple populations.
 
 ```{r}
 summary(subset_channel)
@@ -208,8 +194,9 @@ the article was published on a weekend or not. To view the `share` variable in
 another way, it can be divided along its quartiles with the `cut()` function. 
 Taking the `shares` variable as its first argument, `cut()` then uses 
 `quantile()` to split up the variable into value ranges, taking a vector of 
-quantiles with the `probs()` argument. The object is saved, and used in the 
-`table()` function to make a contingency table against the `is_weekend` 
+quantiles with the `probs()` argument. Labels of the ranges are assigned as 
+the related quartiles with the `labels` argument. Then, the object is saved and 
+used in the `table()` function to make a contingency table against the `is_weekend` 
 variable. `rbind()` takes the table and uses `apply()` to add the proportion of 
 number of weekend shares of the total split. The `MARGIN` argument is set to 2 
 to indicate column proportions are being calculated, and the `FUN` argument 
@@ -217,15 +204,60 @@ takes in the function to apply: in this case, the number of weekend shares
 divided by the sum of shares for the split, rounded to 3 decimals. Proportions 
 trending higher from left to right indicate that it is more common for articles 
 with higher shares to be published on a weekend for that particular data 
-channel, and proportions trending lower from left to right indicate the 
-converse. If neither case is true, there may be no clear pattern.
+channel relative to articles with lower shares, and proportions trending lower 
+from left to right indicate the converse. If neither case is true, there may be 
+no clear linear pattern.
 
 ```{r}
 quart_shares <- cut(subset_channel$shares, 
                     breaks = quantile(subset_channel$shares, 
-                                      probs = c(0, 0.25, 0.5, 0.75, 1)))
+                                      probs = c(0, 0.25, 0.5, 0.75, 1)),
+                    labels = c("Q1", "Q2", "Q3", "Q4"))
 tab <- table(subset_channel$is_weekend, quart_shares)
 rbind(tab, apply(tab, MARGIN = 2, FUN = function(x){round(x[2] / sum(x), 3)}))
+```
+
+## Bar plot
+
+The contingency table can be graphically visualized as a bar plot. First, the 
+data is subset to only the `is_weekend` variable, and the factor of quartiles 
+created previously with the `cut()` function is added using `mutate()`. Then, 
+the `drop_na()` function is used on the quartiles to prevent an empty fill 
+of `NA` in the bar plot, and the new data set is saved as `bar_data`.
+
+A base plotting object is then created with the subset `bar_data`, mapping the 
+quartiles to the x axis as an aesthetic within the `aes()` function. A bar geom 
+layer is added using `geom_bar()`, with `is_weekend`, which is converted to a 
+factor, mapped to the bar fills using the `fill` argument within the `aes()` 
+mapping. The `position` argument is set to `"dodge"` to display the bar fills 
+side-by-side. Appropriate labels are then added with a `labs()` layer, setting 
+the title, subtitle, x axis, and fill labels with their respective arguments. 
+A final label is added with `scale_fill_discrete()`, changing the fill labels in 
+the legend from 0 and 1 to "No" and "Yes".
+
+From the plot, the same trends can be tracked. Differing fill heights within a 
+quartile will indicate whether articles published on a weekend had more or less 
+shares for that relative range of shares(the quartile), and changes in height 
+for the same fill across quartiles will indicate if more articles are shared in 
+higher volumes for that setting of weekday vs. weekend. If the bars go up, then 
+the number of articles that are shared for higher share ranges increase; if the 
+bars go down, then the number of articles share for higher share ranges 
+decrease, and if the bars do neither, then there is no clear linear trend.
+
+```{r}
+bar_data <- subset_channel %>%
+  select(is_weekend) %>%
+  mutate(quart_shares = quart_shares) %>%
+  drop_na(quart_shares)
+
+g <- ggplot(data = bar_data, aes(x = quart_shares))
+g + geom_bar(aes(fill = as.factor(is_weekend)), 
+             position = "dodge") +
+  labs(title = "Bar Plot of Shares",
+       subtitle = "by share quartile",
+       x = "Quartile",
+       fill = "Is Weekend") +
+  scale_fill_discrete(labels = c("No", "Yes"))
 ```
 
 ## Box plot
@@ -239,8 +271,8 @@ the splits exclude the right value, meaning 0 is the first split, and the second
 split starts at 1. A base plotting object is created again, this time mapping 
 the cut variable `img_split` on the x axis, and the number of shares on the y 
 axis. A box plot layer is added with `geom_boxplot()`, mapping the split levels 
-as the color. Labels for the x axis added and title are added with the `labs()` 
-function.
+as the color. Labels for the title, x axis, and legend are added by arguments of 
+`"title"`, `"x"`, and `"color"`, respectively, within the `labs()` function.
 
 Because the distribution of shares could be highly skewed, there may be many 
 outliers and the box plot may not be visually appealing or useful. Although 
@@ -258,24 +290,85 @@ outliers would indicate a symmetric distribution.
 
 ```{r}
 img_split <- cut(subset_channel$num_imgs, 
-                 breaks = c(-Inf, 1, Inf),
+                 breaks = c(0, 1, Inf),
                  labels = c("0", "1 or more"),
                  right = FALSE)
 g <- ggplot(data = subset_channel, aes(x = img_split, y = shares))
 g + geom_boxplot(aes(color = img_split)) +
   labs(title = "Boxplot of shares by number of images",
-       x = "Number of images")
+       x = "Number of images",
+       color = "Number of images")
 
 g <- ggplot(data = subset_channel, aes(x = img_split, y = shares))
 g + geom_boxplot(aes(color = img_split)) +
   labs(title = "Boxplot of shares by number of images",
-       x = "Number of images") +
+       x = "Number of images",
+       color = "Number of images") +
   coord_cartesian(ylim = c(0, quantile(subset_channel$shares, 0.90)))
 ```
+
+## Scatter plot
+
+It may be interesting to consider the average number of shares across variables. 
+First, the data is summarized by using the `group_by` function on `num_hrefs` to 
+create a grouping by number of links, then, the `summarize()` function calls the 
+`mean()` function to take the average number of shares across each value of the 
+number of links. The same idea is done to summarize the average number of shares 
+across the number of links, using the same syntax.
+
+To create a scatter plot for the average shares by number of links, a base 
+plotting object is created with `ggplot()`, using the summarized `avg_links` as 
+the reference data set. A geom layer using `geom_point()` maps the aesthetics of 
+number of links on the x axis and average shares on the y axis, and the `color` 
+argument colors the points red. Then, a label layer adds title, x axis, y axis 
+labels. A scatter plot for the average shares by number of links is added, using 
+the same syntax, but substituting the corresponding data set, variables, and 
+labels.
+
+When viewing the plots, a trend of points moving upwards from left to right 
+would indicate the average number of shares increases with the number of links 
+or images in articles, and a trend of points moving downwards from right to 
+left would indicate the average number of shares decreases with the number of 
+the number of links or images in articles. Points having no general direction 
+would indicate little or no trend in linearity.
+
+```{r}
+avg_links <- subset_channel %>%
+  group_by(num_hrefs) %>%
+  summarize(avg_shares = mean(shares))
+
+avg_imgs <- subset_channel %>%
+  group_by(num_imgs) %>%
+  summarize(avg_shares = mean(shares))
+
+g <- ggplot(data = avg_links)
+g + geom_point(aes(x = num_hrefs, y = avg_shares), color = "red") +
+  labs(title = "Scatterplot of average shares by number of links",
+       x = "Number of links",
+       y = "Average number of shares")
+
+g <- ggplot(data = avg_imgs)
+g + geom_point(aes(x = num_imgs, y = avg_shares), color = "blue") +
+  labs(title = "Scatterplot of average shares by number of images",
+       x = "Number of images",
+       y = "Average number of shares")
+```
+
 
 # Modeling
 
 ## Regression
+
+**Explanation**: 
+Linear regression is a supervised learning technique where the value of the of a 
+response variable is modeled or predicted by an explanatory variable by fitting 
+a linear equation to observed data. The equation of the line can be modeled 
+generically by: `Y~i~ = B~0~ + B~1~x~i~ + E~i~ where Y~i~` is the response for 
+the i^th^ observation, `x~i~` is the value of the explanatory variable for the 
+i^th^ observation, `B~0~` is the y-intercept, `B~1~` is the slope, and `E~i~` is 
+the error. The line of best fit is found by minimizing the sum of squared 
+differences between the observed values and the predicted values on the line 
+itself.
 
 To model the data, first it needs to be split into a training set and test set. 
 The `createDataPartition()` takes the `shares` variable and samples 70% of the 
@@ -291,17 +384,6 @@ modeled by the remaining main effect terms of the variables chosen during the
 correlation section above. The data used is the training set, and the 
 `method` argument is passed "lm" to indicate a linear model. The model is saved 
 as `mlr`.
-
-**Aside**: 
-Linear regression is a supervised learning technique where the value of the of a 
-response variable is modeled or predicted by an explanatory variable by fitting 
-a linear equation to observed data. The equation of the line can be modeled 
-generically by: `Y~i~ = B~0~ + B~1~x~i~ + E~i~ where Y~i~` is the response for 
-the i^th^ observation, `x~i~` is the value of the explanatory variable for the 
-i^th^ observation, `B~0~` is the y-intercept, `B~1~` is the slope, and `E~i~` is 
-the error. The line of best fit is found by minimizing the sum of squared 
-differences between the observed values and the predicted values on the line 
-itself.
 
 The modeled regression line is used to predict on the test data set using the
 `predict()` function. Those predictions are then evaluated for prediction error 
@@ -401,9 +483,8 @@ vectors are named explicitly. The tuning parameters are as follows:
   + `n.minobsinnode` is the minimum number of observations allowed in the terminal nodes of each tree.
 
 The grid is saved, and then the `trainControl()` function again chooses the 
-training parameters, this time with 10 folds. The `gbm` package is then read in 
-to be used with the `train()` function, and the random number generator seed is 
-reset. The `train()` function uses the same syntax before, but this time 
+training parameters, but now using 10 folds. The random number generator seed is 
+then reset. The `train()` function uses the same syntax before, but this time 
 indicates `"gbm"` as the method, the `tuneGrid` argument is passed the 
 expanded grid, and `verbose` is set to `FALSE` to hide the outputs of every fit. 
 The predictions are then generated and evaluated using the same syntax and 
@@ -414,9 +495,8 @@ caretGrid <- expand.grid(interaction.depth = c(1,2,3,4),
                          n.trees = c(25,50,100,150,200),
                          shrinkage = 0.1,
                          n.minobsinnode = 10)
-trainControl <- trainControl(method ="cv", number = 10)
+trainControl <- trainControl(method = "cv", number = 10)
 
-library(gbm)
 set.seed(99)
 btFit <- train(shares ~ ., data = dataTrain,
                method = "gbm",
@@ -427,6 +507,12 @@ btFit <- train(shares ~ ., data = dataTrain,
 
 btpred <- predict(btFit, newdata = dataTest)
 postResample(btpred, dataTest$shares)
+```
+
+# Comparing
+
+```{r}
+
 ```
 
 
