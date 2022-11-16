@@ -5,8 +5,6 @@ date: "2022-11-11"
 output: 
   github_document:
     toc: true
-    toc_float: true
-    code_folding: "show"
 params:  
       channel: "data_channel_is_entertainment"
 ---
@@ -60,7 +58,7 @@ in the `params` argument in the R Markdown document, and is saved as `channel`.
 
 ```{r}
 channelIDs <- unique(news_pop$data_channel)
-output_file <- paste0(channelIDs, ".html")
+output_file <- paste0(channelIDs, ".md")
 param_names <- lapply(channelIDs, FUN = function(x){list(channel = x)})
 reports <- tibble(output_file, param_names)
 channel <- news_pop %>% filter(data_channel == params$channel)
@@ -130,7 +128,7 @@ In addition to using general knowledge about the content in variable selection,
 variables are chosen from different subject matters to avoid colinearity. So, 
 from this list, one variable from each general area is selected, in addition to 
 the target variable, then the subset of the data set is saved and a correlation 
-matrix on the subset is printed as a data frame.
+matrix on the subset is printed as a table using the `kable()` function.
 
 Another correlation plot is generated on the smaller set of variables using 
 `corrplot()`, and the results should ideally confirm that the variables are 
@@ -147,7 +145,7 @@ top_cors
 subset_channel <- channel %>%
   select(kw_avg_avg, self_reference_avg_sharess, num_hrefs, num_imgs, 
          global_subjectivity, is_weekend, avg_positive_polarity, shares)
-data.frame(cor(subset_channel))
+knitr::kable(cor(subset_channel))
 
 corrplot(cor(subset_channel),
          type = "lower",
@@ -385,15 +383,9 @@ correlation section above. The data used is the training set, and the
 `method` argument is passed "lm" to indicate a linear model. The model is saved 
 as `mlr`.
 
-The modeled regression line is used to predict on the test data set using the
-`predict()` function. Those predictions are then evaluated for prediction error 
-by being passed as the first argument of `postResample()` with the actual 
-`shares` observations as the second argument. RMSE, Rsquared, and MAE are 
-output. 
-
-A second multiple linear regression model is fitted, predicted on, and evaluated 
-using the same methodology and syntax, but uses all main effects and all 
-interaction terms via `~.^2` in the formula argument.
+A second multiple linear regression model is fitted using the same methodology 
+and syntax, but uses all main effects and all interaction terms via `~.^2` in 
+the formula argument.
 
 ```{r}
 dataIndex <- createDataPartition(subset_channel$shares, p = 0.7, list = FALSE)
@@ -401,12 +393,7 @@ dataTrain <- subset_channel[dataIndex, ]
 dataTest <- subset_channel[-dataIndex, ]
 
 mlr <- train(shares ~., data = dataTrain, method ="lm")
-pmlr <- predict(mlr, newdata = dataTest)
-postResample(pmlr, dataTest$shares)
-
 mlr2<- train(shares ~.^2, data = dataTrain, method ="lm")
-pmlr2<- predict(mlr2, newdata = dataTest)
-postResample(pmlr2, dataTest$shares)
 ```
 
 ## Ensemble Tree Methods
@@ -422,8 +409,8 @@ then trained on each sample, called a bootstrap sample, using a random subset
 of the variables. This is done to reduce variance; if a dominant predictor is 
 present most of the trees will use the same first splits, and will be highly 
 correlated. After all of the predictions are done, the final predictions are the 
-average of all the individual tree predictions, or if using a classification 
-prediction, the final prediction is the majority vote by all trees.
+average of all the individual tree predictions, or if using classification, the 
+final prediction is the majority vote by all trees.
 
 Before fitting the tree model, a random number generator seed is first set to 
 reproduce the random aspects of the training. The `train()` function then takes 
@@ -437,10 +424,6 @@ the testing data later. `tuneGrid` passes a data frame of tuning parameters; for
 random forests, the parameters are the number of random variables to try, 
 labeled as `mtry`, and given as a sequence. The fit is then saved.
 
-Predictions are made from the random forest fit using the `predict()` function 
-and the results are evaluated. The same methodology and syntax from the linear 
-modeling is used.
-
 ```{r, eval = FALSE}
 #Set eval = FALSE to test
 #random Forest
@@ -452,9 +435,6 @@ rfFit <- train(shares ~ ., data = dataTrain,
                                         number = 3),
                preProcess = c("center", "scale"),
                tuneGrid = data.frame(mtry = 1:6))
-
-pred <- predict(rfFit, newdata = dataTest)
-postResample(pred, dataTest$shares)
 ```
 
 ### Boosted Trees
@@ -486,9 +466,7 @@ The grid is saved, and then the `trainControl()` function again chooses the
 training parameters, but now using 10 folds. The random number generator seed is 
 then reset. The `train()` function uses the same syntax before, but this time 
 indicates `"gbm"` as the method, the `tuneGrid` argument is passed the 
-expanded grid, and `verbose` is set to `FALSE` to hide the outputs of every fit. 
-The predictions are then generated and evaluated using the same syntax and 
-methodology previously.
+expanded grid, and `verbose` is set to `FALSE` to hide the outputs of every fit.
 
 ```{r}
 caretGrid <- expand.grid(interaction.depth = c(1,2,3,4), 
@@ -505,14 +483,48 @@ btFit <- train(shares ~ ., data = dataTrain,
                tuneGrid = caretGrid,
                verbose = FALSE)
 
-btpred <- predict(btFit, newdata = dataTest)
-postResample(btpred, dataTest$shares)
 ```
 
-# Comparing
+# Comparing Models
+
+To compare all of the models on the test set and evaluate the results at once, 
+a function is created. `pred_val()` takes arguments of a named list of models, 
+`models`, the test data set, `newdata`, and a vector of true responses, `obs`. 
+First, the names are extracted from the list of models using the `name()` 
+function, and saved as a temporary object. Next, `lapply()` applies the 
+`predict()` function to the list of models, taking the user-provided `newdata` 
+variable as the test data to predict on. The predictions are saved as `preds`. 
+Then, the `sapply()` function takes those predictions and applies the 
+`postResample()` function to them to evaluate prediction error, taking the 
+user-provided `obs` argument as the true responses. The RMSE, Rsquared, and MAE 
+are saved for each model, simplified on output, and saved. The `which.min()` 
+function returns the name and index of the model with the minimum RMSE, 
+accessing the first row of the table of evaluation results, as RMSE is the 
+metric being used to evaluate the 'best' model. The best model is then saved by 
+using bracket notation and the index. A list is returned from the function with 
+the results of testing all models, the results of the 'best' model, and the 
+name of the best model.
+
+To apply the function, a named list of all the models created in this document 
+is produced and saved, then the `pred_eval()` function takes that list, the test 
+data, and the vector of observed responses as arguments, and predicts on and 
+evaluates the models. The output is then printed for viewing.
 
 ```{r}
+#change RHS of rfFit before submitting; used as-is for testing
+pred_eval <- function(models, newdata, obs){
+  names <- names(models)
+  preds <- lapply(models, FUN = predict, newdata)
+  evals <- sapply(preds, FUN = postResample, obs)
+  index <- which.min(evals[1, ])
+  best <- evals[ ,index]
+  return(list(evals, best, names[index]))
+}
 
+models <- list(mlr = mlr, mlr2 = mlr2, btFit = btFit, rfFit = mlr)
+comp_results <- pred_eval(models, dataTest, dataTest$shares)
+comp_results
 ```
 
-
+From the results, the 'best' model of the four fits based on RMSE prediction 
+error is `r comp_results[[3]]` with an RMSE of `r comp_results[[2]][[1]]`. 
