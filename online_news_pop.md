@@ -27,6 +27,47 @@ Umesh Rao & Luke Perkins
 
 # Introduction
 
+This project analyzes and models on the [Online News
+Popularity](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity)
+data set from UCI. The data set covers a range of features about
+articles that were published by Mashable over two years. The purpose is
+to predict the number of shares in social networks. There are 61 total
+variables, however, this analysis will focus on the following:
+
+-   `kw_avg_avg`: average keyword (average shares)  
+-   `self_reference_avg_sharess`: average shares of referenced articles
+    in Mashable  
+-   `num_hrefs`: number of links  
+-   `num_imgs`: number of images  
+-   `global_subjectivity`: text subjectivity  
+-   `is_weekend`: was the article published on the weekend?  
+-   `avg_positive_polarity`: average polarity of positive words  
+-   `shares`: number of shares; also the target variable being predicted
+
+Rather than analyzing the data in its entirety, this project also
+utilizes automation through R Markdown to generate analyses across each
+level of the data channel, as gathered from the original data, in
+separate reports.
+
+Prior to modeling, an exploratory data analysis (EDA) will be conducted
+in efforts to gain a better understanding of the behavior of the data in
+addition to reducing the number of predictors selected. The analysis
+will provide indication of the spread, center, and distribution shape of
+the variables, as well as the correlation between variables. Several
+types of supervised learning techniques will be employed: general linear
+modeling (specifically, multiple linear regression), random forests, and
+gradient boosted trees. The entire process can be summarized as:
+
+1.  Read in the data  
+2.  Manipulate the data for automation purposes  
+3.  Conduct an EDA and select predictors  
+4.  Subset data to chosen predictors and split into training and testing
+    sets  
+5.  Train and tune models, selecting the best model within each method
+    via cross-validation  
+6.  Predict on the test set with each model and select the ‘best’
+    overall by lowest RMSE
+
 # Data Reading and Formatting
 
 To begin, we load in relevant packages with `library()` statements.
@@ -271,7 +312,7 @@ selection, variables are chosen from different subject matters to avoid
 colinearity. So, from this list, one variable from each general area is
 selected, in addition to the target variable, then the subset of the
 data set is saved and a correlation matrix on the subset is printed as a
-data frame.
+table using the `kable()` function.
 
 Another correlation plot is generated on the smaller set of variables
 using `corrplot()`, and the results should ideally confirm that the
@@ -616,15 +657,9 @@ chosen during the correlation section above. The data used is the
 training set, and the `method` argument is passed “lm” to indicate a
 linear model. The model is saved as `mlr`.
 
-The modeled regression line is used to predict on the test data set
-using the `predict()` function. Those predictions are then evaluated for
-prediction error by being passed as the first argument of
-`postResample()` with the actual `shares` observations as the second
-argument. RMSE, Rsquared, and MAE are output.
-
-A second multiple linear regression model is fitted, predicted on, and
-evaluated using the same methodology and syntax, but uses all main
-effects and all interaction terms via `~.^2` in the formula argument.
+A second multiple linear regression model is fitted using the same
+methodology and syntax, but uses all main effects and all interaction
+terms via `~.^2` in the formula argument.
 
 ``` r
 dataIndex <- createDataPartition(subset_channel$shares, p = 0.7, list = FALSE)
@@ -632,21 +667,8 @@ dataTrain <- subset_channel[dataIndex, ]
 dataTest <- subset_channel[-dataIndex, ]
 
 mlr <- train(shares ~., data = dataTrain, method ="lm")
-pmlr <- predict(mlr, newdata = dataTest)
-postResample(pmlr, dataTest$shares)
-```
-
-    ##         RMSE     Rsquared          MAE 
-    ## 9.935717e+03 4.866517e-02 3.071810e+03
-
-``` r
 mlr2<- train(shares ~.^2, data = dataTrain, method ="lm")
-pmlr2<- predict(mlr2, newdata = dataTest)
-postResample(pmlr2, dataTest$shares)
 ```
-
-    ##         RMSE     Rsquared          MAE 
-    ## 9.850375e+03 6.786539e-02 3.065536e+03
 
 ## Ensemble Tree Methods
 
@@ -662,9 +684,8 @@ called a bootstrap sample, using a random subset of the variables. This
 is done to reduce variance; if a dominant predictor is present most of
 the trees will use the same first splits, and will be highly correlated.
 After all of the predictions are done, the final predictions are the
-average of all the individual tree predictions, or if using a
-classification prediction, the final prediction is the majority vote by
-all trees.
+average of all the individual tree predictions, or if using
+classification, the final prediction is the majority vote by all trees.
 
 Before fitting the tree model, a random number generator seed is first
 set to reproduce the random aspects of the training. The `train()`
@@ -680,10 +701,6 @@ tuning parameters; for random forests, the parameters are the number of
 random variables to try, labeled as `mtry`, and given as a sequence. The
 fit is then saved.
 
-Predictions are made from the random forest fit using the `predict()`
-function and the results are evaluated. The same methodology and syntax
-from the linear modeling is used.
-
 ``` r
 #Set eval = FALSE to test
 #random Forest
@@ -695,9 +712,6 @@ rfFit <- train(shares ~ ., data = dataTrain,
                                         number = 3),
                preProcess = c("center", "scale"),
                tuneGrid = data.frame(mtry = 1:6))
-
-pred <- predict(rfFit, newdata = dataTest)
-postResample(pred, dataTest$shares)
 ```
 
 ### Boosted Trees
@@ -734,9 +748,7 @@ the training parameters, but now using 10 folds. The random number
 generator seed is then reset. The `train()` function uses the same
 syntax before, but this time indicates `"gbm"` as the method, the
 `tuneGrid` argument is passed the expanded grid, and `verbose` is set to
-`FALSE` to hide the outputs of every fit. The predictions are then
-generated and evaluated using the same syntax and methodology
-previously.
+`FALSE` to hide the outputs of every fit.
 
 ``` r
 caretGrid <- expand.grid(interaction.depth = c(1,2,3,4), 
@@ -752,22 +764,41 @@ btFit <- train(shares ~ ., data = dataTrain,
                preProcess = c("center", "scale"),
                tuneGrid = caretGrid,
                verbose = FALSE)
-
-btpred <- predict(btFit, newdata = dataTest)
-postResample(btpred, dataTest$shares)
 ```
-
-    ##         RMSE     Rsquared          MAE 
-    ## 1.002210e+04 1.893856e-02 3.115876e+03
 
 # Comparing Models
 
+To compare all of the models on the test set and evaluate the results at
+once, a function is created. `pred_val()` takes arguments of a named
+list of models, `models`, the test data set, `newdata`, and a vector of
+true responses, `obs`. First, the names are extracted from the list of
+models using the `name()` function, and saved as a temporary object.
+Next, `lapply()` applies the `predict()` function to the list of models,
+taking the user-provided `newdata` variable as the test data to predict
+on. The predictions are saved as `preds`. Then, the `sapply()` function
+takes those predictions and applies the `postResample()` function to
+them to evaluate prediction error, taking the user-provided `obs`
+argument as the true responses. The RMSE, Rsquared, and MAE are saved
+for each model, simplified on output, and saved. The `which.min()`
+function returns the name and index of the model with the minimum RMSE,
+accessing the first row of the table of evaluation results, as RMSE is
+the metric being used to evaluate the ‘best’ model. The best model is
+then saved by using bracket notation and the index. A list is returned
+from the function with the results of testing all models, the results of
+the ‘best’ model, and the name of the best model.
+
+To apply the function, a named list of all the models created in this
+document is produced and saved, then the `pred_eval()` function takes
+that list, the test data, and the vector of observed responses as
+arguments, and predicts on and evaluates the models. The output is then
+printed for viewing.
+
 ``` r
-#change RHS of rfFit before submitting, slow for now
-pred_eval <- function(models, data, response){
+#change RHS of rfFit before submitting; used as-is for testing
+pred_eval <- function(models, newdata, obs){
   names <- names(models)
-  preds <- lapply(models, FUN = predict, data)
-  evals <- sapply(preds, FUN = postResample, response)
+  preds <- lapply(models, FUN = predict, newdata)
+  evals <- sapply(preds, FUN = postResample, obs)
   index <- which.min(evals[1, ])
   best <- evals[ ,index]
   return(list(evals, best, names[index]))
@@ -780,15 +811,26 @@ comp_results
 
     ## [[1]]
     ##                   mlr         mlr2        btFit        rfFit
-    ## RMSE     9.935717e+03 9.850375e+03 1.002210e+04 9.935717e+03
-    ## Rsquared 4.866517e-02 6.786539e-02 1.893856e-02 4.866517e-02
-    ## MAE      3.071810e+03 3.065536e+03 3.115876e+03 3.071810e+03
+    ## RMSE     7163.1948331 7.229473e+03 7.129854e+03 7163.1948331
+    ## Rsquared    0.0126432 1.100398e-02 8.144619e-03    0.0126432
+    ## MAE      2821.5032684 2.840561e+03 2.765437e+03 2821.5032684
     ## 
     ## [[2]]
     ##         RMSE     Rsquared          MAE 
-    ## 9.850375e+03 6.786539e-02 3.065536e+03 
+    ## 7.129854e+03 8.144619e-03 2.765437e+03 
     ## 
     ## [[3]]
-    ## [1] "mlr2"
+    ## [1] "btFit"
 
-The ‘best’ model of the four fits is mlr2 with an RMSE of 9850.374692.
+``` r
+knitr::kable(comp_results[[1]])
+```
+
+|          |          mlr |        mlr2 |        btFit |        rfFit |
+|:---------|-------------:|------------:|-------------:|-------------:|
+| RMSE     | 7163.1948331 | 7229.473382 | 7129.8536939 | 7163.1948331 |
+| Rsquared |    0.0126432 |    0.011004 |    0.0081446 |    0.0126432 |
+| MAE      | 2821.5032684 | 2840.560623 | 2765.4372975 | 2821.5032684 |
+
+From the results, the ‘best’ model of the four fits based on RMSE
+prediction error is btFit with an RMSE of 7129.8536939.
