@@ -635,6 +635,50 @@ Trees</a></li>
 Models</a></li>
 </ul>
 <h1 id="introduction">Introduction</h1>
+<p>This project analyzes and models the <a href="https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity">Online
+News Popularity</a> data set from UCI. The data set covers a range of
+features about articles that were published by Mashable over two years.
+The purpose is to predict the number of shares in social networks. There
+are 61 total variables, however, this analysis will focus on the
+following:</p>
+<ul>
+<li><code>kw_avg_avg</code>: average keyword (average shares)</li>
+<li><code>self_reference_avg_sharess</code>: average shares of
+referenced articles in Mashable</li>
+<li><code>num_hrefs</code>: number of links</li>
+<li><code>num_imgs</code>: number of images</li>
+<li><code>global_subjectivity</code>: text subjectivity</li>
+<li><code>is_weekend</code>: was the article published on the
+weekend?</li>
+<li><code>avg_positive_polarity</code>: average polarity of positive
+words</li>
+<li><code>shares</code>: number of shares; also the target variable
+being predicted</li>
+</ul>
+<p>Rather than analyzing the data in its entirety, this project also
+utilizes automation through R Markdown to generate analyses across each
+level of the data channel, as gathered from the original data, in
+separate reports.</p>
+<p>Prior to modeling, an exploratory data analysis (EDA) will be
+conducted in efforts to gain a better understanding of the behavior of
+the data, in addition to reducing the number of predictors selected. The
+analysis will provide indication of the spread, center, and distribution
+shape of the variables, as well as the correlation between variables.
+Several types of supervised learning techniques will be employed:
+general linear modeling (specifically, multiple linear regression),
+random forests, and gradient boosted trees.</p>
+<p>The entire process can be summarized as:</p>
+<ol style="list-style-type: decimal">
+<li>Read in the data</li>
+<li>Manipulate the data for automation purposes</li>
+<li>Conduct an EDA and select predictors</li>
+<li>Subset data to chosen predictors and split into training and testing
+sets</li>
+<li>Train and tune models, selecting the best model within each method
+via cross-validation</li>
+<li>Predict on the test set with each model and select the ‘best’
+overall by lowest RMSE</li>
+</ol>
 <h1 id="data-reading-and-formatting">Data Reading and Formatting</h1>
 <p>To begin, we load in relevant packages with <code>library()</code>
 statements. Then, <code>read_csv()</code> and a relative path is used to
@@ -1116,7 +1160,7 @@ multiple populations.</p>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">title =</span> <span class="st">&quot;Histogram of Shares&quot;</span>)</span></code></pre></div>
 <p><img src="data:image/png;base64,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" /><!-- --></p>
 <h2 id="contingency-table">Contingency Table</h2>
-<p>It might be interesting to look at the number of shares depending on
+<p>One view of interest to consider is the number of shares depending on
 whether the article was published on a weekend or not. To view the
 <code>share</code> variable in another way, it can be divided along its
 quartiles with the <code>cut()</code> function. Taking the
@@ -1132,12 +1176,12 @@ of weekend shares of the total split. The <code>MARGIN</code> argument
 is set to 2 to indicate column proportions are being calculated, and the
 <code>FUN</code> argument takes in the function to apply: in this case,
 the number of weekend shares divided by the sum of shares for the split,
-rounded to 3 decimals. Proportions trending higher from left to right
-indicate that it is more common for articles with higher shares to be
-published on a weekend for that particular data channel relative to
-articles with lower shares, and proportions trending lower from left to
-right indicate the converse. If neither case is true, there may be no
-clear linear pattern.</p>
+rounded to 3 decimals.</p>
+<p>Proportions trending higher from left to right indicate that it is
+more common for articles with higher shares to be published on a weekend
+for that particular data channel relative to articles with lower shares,
+and proportions trending lower from left to right indicate the converse.
+If neither case is true, there may be no clear linear pattern.</p>
 <div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>quart_shares <span class="ot">&lt;-</span> <span class="fu">cut</span>(subset_channel<span class="sc">$</span>shares, </span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>                    <span class="at">breaks =</span> <span class="fu">quantile</span>(subset_channel<span class="sc">$</span>shares, </span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>                                      <span class="at">probs =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fl">0.25</span>, <span class="fl">0.5</span>, <span class="fl">0.75</span>, <span class="dv">1</span>)),</span>
@@ -1168,15 +1212,16 @@ the bar fills side-by-side. Appropriate labels are then added with a
 labels with their respective arguments. A final label is added with
 <code>scale_fill_discrete()</code>, changing the fill labels in the
 legend from 0 and 1 to “No” and “Yes”.</p>
-<p>From the plot, the same trends can be tracked. Differing fill heights
-within a quartile will indicate whether articles published on a weekend
-had more or less shares for that relative range of shares(the quartile),
-and changes in height for the same fill across quartiles will indicate
-if more articles are shared in higher volumes for that setting of
-weekday vs. weekend. If the bars go up, then the number of articles that
-are shared for higher share ranges increase; if the bars go down, then
-the number of articles share for higher share ranges decrease, and if
-the bars do neither, then there is no clear linear trend.</p>
+<p>From the plot, the same trends in the contingency table can be
+tracked. Differing fill heights within a quartile will indicate whether
+articles published on a weekend had more or less shares for that
+relative range of shares(the quartile), and changes in height for the
+same fill across quartiles will indicate if more articles are shared in
+higher volumes for that setting of weekday vs. weekend. If the bars go
+up, then the number of articles that are shared for higher share ranges
+increase; if the bars go down, then the number of articles share for
+higher share ranges decrease, and if the bars do neither, then there is
+no clear linear trend.</p>
 <div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>bar_data <span class="ot">&lt;-</span> subset_channel <span class="sc">%&gt;%</span></span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(is_weekend) <span class="sc">%&gt;%</span></span>
 <span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">quart_shares =</span> quart_shares) <span class="sc">%&gt;%</span></span>
@@ -1210,18 +1255,23 @@ function.</p>
 <p>Because the distribution of shares could be highly skewed, there may
 be many outliers and the box plot may not be visually appealing or
 useful. Although outliers should not be removed without cause, to gain a
-better view of the data, a consideration may be to view the box plot
+better view of the data, one consideration is to view the box plot
 without them. A similar box plot with the same syntax, but adding a
 coordinate layer with <code>coord_cartesian()</code> is generated,
 specifying the <code>ylim</code> argument to range from 0 to the 90th
 percentile of <code>shares</code> to show a better scale that hides some
 outliers. Many points above the boxes, a long tail above the box plots,
 or the median line being located towards the bottom of the boxes could
-indicate positive skew. Points towards the bottom would, a long tail
-below the box plots, or the median line being indicated towards the top
-of the boxes could indicate negative skew. Relatively symmetric tails, a
-median close to the center of the boxes, and few outliers would indicate
-a symmetric distribution.</p>
+indicate positive skew. Points towards the bottom, a long tail below the
+box plots, or the median line being indicated towards the top of the
+boxes could indicate negative skew. Relatively symmetric tails, a median
+close to the center of the boxes, and few outliers would indicate a
+symmetric distribution. If the size of the box or the length of its tail
+for the number of images being 0 is larger/longer, then there is more
+variability in the number of shares for articles with 0 images when
+compared to those with 1 or more. If the boxes and tails are
+smaller/shorter, then there is less variability in the number of shares
+for articles with 0 images when compared to those 1 or more.</p>
 <div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>img_split <span class="ot">&lt;-</span> <span class="fu">cut</span>(subset_channel<span class="sc">$</span>num_imgs, </span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>                 <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="cn">Inf</span>),</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>                 <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">&quot;0&quot;</span>, <span class="st">&quot;1 or more&quot;</span>),</span>
@@ -1240,7 +1290,7 @@ a symmetric distribution.</p>
 <span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_cartesian</span>(<span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="fu">quantile</span>(subset_channel<span class="sc">$</span>shares, <span class="fl">0.90</span>)))</span></code></pre></div>
 <p><img src="data:image/png;base64,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" /><!-- --></p>
 <h2 id="scatter-plot">Scatter plot</h2>
-<p>It may be interesting to consider the average number of shares across
+<p>Another view to consider is the average number of shares across
 variables. First, the data is summarized by using the
 <code>group_by</code> function on <code>num_hrefs</code> to create a
 grouping by number of links, then, the <code>summarize()</code> function
@@ -1263,7 +1313,7 @@ number of links or images in articles, and a trend of points moving
 downwards from right to left would indicate the average number of shares
 decreases with the number of the number of links or images in articles.
 Points having no general direction would indicate little or no trend in
-linearity.</p>
+a linear relationship.</p>
 <div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>avg_links <span class="ot">&lt;-</span> subset_channel <span class="sc">%&gt;%</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(num_hrefs) <span class="sc">%&gt;%</span></span>
 <span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">avg_shares =</span> <span class="fu">mean</span>(shares))</span>
@@ -1287,16 +1337,17 @@ linearity.</p>
 <h1 id="modeling">Modeling</h1>
 <h2 id="regression">Regression</h2>
 <p><strong>Explanation</strong>: Linear regression is a supervised
-learning technique where the value of the of a response variable is
-modeled or predicted by an explanatory variable by fitting a linear
-equation to observed data. The equation of the line can be modeled
-generically by: <code>Y~i~ = B~0~ + B~1~x~i~ + E~i~ where Y~i~</code> is
-the response for the i<sup>th</sup> observation, <code>x~i~</code> is
-the value of the explanatory variable for the i<sup>th</sup>
-observation, <code>B~0~</code> is the y-intercept, <code>B~1~</code> is
-the slope, and <code>E~i~</code> is the error. The line of best fit is
-found by minimizing the sum of squared differences between the observed
-values and the predicted values on the line itself.</p>
+learning technique where the value of a response variable is modeled or
+predicted by an explanatory variable by fitting a linear equation to
+observed data. The equation of the line can be modeled generically by:
+<code>Y~i~ = B~0~ + B~1~x~i~ + E~i~ where Y~i~</code> is the response
+for the i<sup>th</sup> observation, <code>x~i~</code> is the value of
+the explanatory variable for the i<sup>th</sup> observation,
+<code>B~0~</code> is the y-intercept, <code>B~1~</code> is the slope,
+and <code>E~i~</code> is the error. The modeling is considered because
+the coefficients are linear. The line of best fit is found by minimizing
+the sum of squared differences between the observed values and the
+predicted values on the line itself.</p>
 <p>To model the data, first it needs to be split into a training set and
 test set. The <code>createDataPartition()</code> takes the
 <code>shares</code> variable and samples 70% of the indices by passing
@@ -1309,13 +1360,17 @@ used to obtain a test set, but using the <code>-</code> function to
 access the indices that were not sampled.</p>
 <p>The <code>train()</code> function fits a multiple linear regression
 model of <code>shares</code>, modeled by the remaining main effect terms
-of the variables chosen during the correlation section above. The data
-used is the training set, and the <code>method</code> argument is passed
-“lm” to indicate a linear model. The model is saved as
+of the variables chosen during the correlation section above using the
+<code>~</code> function. All variables are chosen because it is not
+clear which are needed for the best results. The data used is the
+training set, and the <code>method</code> argument is passed
+<code>&quot;lm&quot;</code> to indicate a linear model. The model is saved as
 <code>mlr</code>.</p>
 <p>A second multiple linear regression model is fitted using the same
 methodology and syntax, but uses all main effects and all interaction
-terms via <code>~.^2</code> in the formula argument.</p>
+terms via <code>~.^2</code> in the formula argument. This serves as a
+contrasting model to determine whether or not including all interactions
+improves predictions.</p>
 <div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>dataIndex <span class="ot">&lt;-</span> <span class="fu">createDataPartition</span>(subset_channel<span class="sc">$</span>shares, <span class="at">p =</span> <span class="fl">0.7</span>, <span class="at">list =</span> <span class="cn">FALSE</span>)</span>
 <span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>dataTrain <span class="ot">&lt;-</span> subset_channel[dataIndex, ]</span>
 <span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>dataTest <span class="ot">&lt;-</span> subset_channel[<span class="sc">-</span>dataIndex, ]</span>
@@ -1327,16 +1382,16 @@ terms via <code>~.^2</code> in the formula argument.</p>
 <p><strong>Explanation:</strong> A random forest model is an ensemble
 learning method where many trees are fitted and their results are
 averaged. The basic concept is that given a sample, that sample is
-resampled in the same manner as the original repeatedly. The samples are
-taken with replacement, so that duplicate observations may be present,
-and some observations may be omitted. A tree is then trained on each
-sample, called a bootstrap sample, using a random subset of the
+resampled in the same manner as the original, repeatedly. The samples,
+called bootstrap samples, are taken with replacement, so that duplicate
+observations may be present, and some observations may be omitted. A
+tree is then trained on each sample, using a random subset of the
 variables. This is done to reduce variance; if a dominant predictor is
 present most of the trees will use the same first splits, and will be
 highly correlated. After all of the predictions are done, the final
-predictions are the average of all the individual tree predictions, or
-if using classification, the final prediction is the majority vote by
-all trees.</p>
+predictions are the average of all individual tree predictions, or if
+using classification, the final prediction is the majority vote by all
+trees.</p>
 <p>Before fitting the tree model, a random number generator seed is
 first set to reproduce the random aspects of the training. The
 <code>train()</code> function then takes in the response modeled by all
@@ -1367,14 +1422,14 @@ The fit is then saved.</p>
 learning method wherein trees are fitted sequentially, and each tree is
 fitted based on the previous one, updated by predictions each time. The
 general concept is that the trees are fitted, given a specified number
-of splits, based on residuals of predictions that are updated slowly. In
-detail, first the predictions are initialized to 0, then the residuals
-are calculated, then trees are fitted on the residuals, then the
+of splits, based on residuals of predictions, which are updated slowly.
+In more detail, first the predictions are initialized to 0, then the
+residuals are calculated and trees are fitted on the residuals, then the
 predictions are updated to the predictions prior to the residuals prior
 to the fitting plus the new predictions multiplied by a shrinkage
-parameter to slow the growth. Then, the residuals to fit the next tree
-on are updated from the new predictions, an the process repeats until a
-predefined stopping point.</p>
+parameter to slow the growth. Lastly, the residuals used to fit the next
+tree on are updated from the new predictions, and the process repeats
+until a predefined stopping point.</p>
 <p>Before fitting the boosted tree, a grid of tuning parameters is
 generated with the <code>expand.grid()</code> function, which outputs
 all possible combinations of the vectors passed. This fits trees on each
@@ -1429,15 +1484,16 @@ for each model, simplified on output, and saved. The
 <code>which.min()</code> function returns the name and index of the
 model with the minimum RMSE, accessing the first row of the table of
 evaluation results, as RMSE is the metric being used to evaluate the
-‘best’ model. The best model is then saved by using bracket notation and
-the index. A list is returned from the function with the results of
+‘best’ model. The ‘best’ model is then saved by using bracket notation
+and the index. A list is returned from the function with the results of
 testing all models, the results of the ‘best’ model, and the name of the
-best model.</p>
-<p>To apply the function, a named list of all the models created in this
-document is produced and saved, then the <code>pred_eval()</code>
+‘best’ model.</p>
+<p>To apply the function, a named list of all of the models created in
+this document is produced and saved, then the <code>pred_eval()</code>
 function takes that list, the test data, and the vector of observed
 responses as arguments, and predicts on and evaluates the models. The
-output is then printed for viewing.</p>
+output is then printed for viewing, and the compared metrics are output
+in a table for better display.</p>
 <div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">#change RHS of rfFit before submitting; used as-is for testing</span></span>
 <span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>pred_eval <span class="ot">&lt;-</span> <span class="cf">function</span>(models, newdata, obs){</span>
 <span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  names <span class="ot">&lt;-</span> <span class="fu">names</span>(models)</span>
@@ -1467,6 +1523,41 @@ output is then printed for viewing.</p>
 ## 
 ## [[3]]
 ## [1] &quot;btFit&quot;</code></pre>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(comp_results[[<span class="dv">1</span>]])</span></code></pre></div>
+<table>
+<thead>
+<tr class="header">
+<th align="left"></th>
+<th align="right">mlr</th>
+<th align="right">mlr2</th>
+<th align="right">btFit</th>
+<th align="right">rfFit</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">RMSE</td>
+<td align="right">5350.170680</td>
+<td align="right">5521.5032351</td>
+<td align="right">5337.9227875</td>
+<td align="right">5350.170680</td>
+</tr>
+<tr class="even">
+<td align="left">Rsquared</td>
+<td align="right">0.009836</td>
+<td align="right">0.0080707</td>
+<td align="right">0.0122091</td>
+<td align="right">0.009836</td>
+</tr>
+<tr class="odd">
+<td align="left">MAE</td>
+<td align="right">2409.998598</td>
+<td align="right">2466.9964009</td>
+<td align="right">2390.2826685</td>
+<td align="right">2409.998598</td>
+</tr>
+</tbody>
+</table>
 <p>From the results, the ‘best’ model of the four fits based on RMSE
 prediction error is btFit with an RMSE of 5337.9227875.</p>
 

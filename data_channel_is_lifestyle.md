@@ -27,6 +27,49 @@ Umesh Rao & Luke Perkins
 
 # Introduction
 
+This project analyzes and models the [Online News
+Popularity](https://archive.ics.uci.edu/ml/datasets/Online+News+Popularity)
+data set from UCI. The data set covers a range of features about
+articles that were published by Mashable over two years. The purpose is
+to predict the number of shares in social networks. There are 61 total
+variables, however, this analysis will focus on the following:
+
+-   `kw_avg_avg`: average keyword (average shares)  
+-   `self_reference_avg_sharess`: average shares of referenced articles
+    in Mashable  
+-   `num_hrefs`: number of links  
+-   `num_imgs`: number of images  
+-   `global_subjectivity`: text subjectivity  
+-   `is_weekend`: was the article published on the weekend?  
+-   `avg_positive_polarity`: average polarity of positive words  
+-   `shares`: number of shares; also the target variable being predicted
+
+Rather than analyzing the data in its entirety, this project also
+utilizes automation through R Markdown to generate analyses across each
+level of the data channel, as gathered from the original data, in
+separate reports.
+
+Prior to modeling, an exploratory data analysis (EDA) will be conducted
+in efforts to gain a better understanding of the behavior of the data,
+in addition to reducing the number of predictors selected. The analysis
+will provide indication of the spread, center, and distribution shape of
+the variables, as well as the correlation between variables. Several
+types of supervised learning techniques will be employed: general linear
+modeling (specifically, multiple linear regression), random forests, and
+gradient boosted trees.
+
+The entire process can be summarized as:
+
+1.  Read in the data  
+2.  Manipulate the data for automation purposes  
+3.  Conduct an EDA and select predictors  
+4.  Subset data to chosen predictors and split into training and testing
+    sets  
+5.  Train and tune models, selecting the best model within each method
+    via cross-validation  
+6.  Predict on the test set with each model and select the ‘best’
+    overall by lowest RMSE
+
 # Data Reading and Formatting
 
 To begin, we load in relevant packages with `library()` statements.
@@ -455,7 +498,7 @@ g + geom_histogram(fill = "red") +
 
 ## Contingency Table
 
-It might be interesting to look at the number of shares depending on
+One view of interest to consider is the number of shares depending on
 whether the article was published on a weekend or not. To view the
 `share` variable in another way, it can be divided along its quartiles
 with the `cut()` function. Taking the `shares` variable as its first
@@ -469,11 +512,13 @@ number of weekend shares of the total split. The `MARGIN` argument is
 set to 2 to indicate column proportions are being calculated, and the
 `FUN` argument takes in the function to apply: in this case, the number
 of weekend shares divided by the sum of shares for the split, rounded to
-3 decimals. Proportions trending higher from left to right indicate that
-it is more common for articles with higher shares to be published on a
-weekend for that particular data channel relative to articles with lower
-shares, and proportions trending lower from left to right indicate the
-converse. If neither case is true, there may be no clear linear pattern.
+3 decimals.
+
+Proportions trending higher from left to right indicate that it is more
+common for articles with higher shares to be published on a weekend for
+that particular data channel relative to articles with lower shares, and
+proportions trending lower from left to right indicate the converse. If
+neither case is true, there may be no clear linear pattern.
 
 ``` r
 quart_shares <- cut(subset_channel$shares, 
@@ -509,15 +554,16 @@ title, subtitle, x axis, and fill labels with their respective
 arguments. A final label is added with `scale_fill_discrete()`, changing
 the fill labels in the legend from 0 and 1 to “No” and “Yes”.
 
-From the plot, the same trends can be tracked. Differing fill heights
-within a quartile will indicate whether articles published on a weekend
-had more or less shares for that relative range of shares(the quartile),
-and changes in height for the same fill across quartiles will indicate
-if more articles are shared in higher volumes for that setting of
-weekday vs. weekend. If the bars go up, then the number of articles that
-are shared for higher share ranges increase; if the bars go down, then
-the number of articles share for higher share ranges decrease, and if
-the bars do neither, then there is no clear linear trend.
+From the plot, the same trends in the contingency table can be tracked.
+Differing fill heights within a quartile will indicate whether articles
+published on a weekend had more or less shares for that relative range
+of shares(the quartile), and changes in height for the same fill across
+quartiles will indicate if more articles are shared in higher volumes
+for that setting of weekday vs. weekend. If the bars go up, then the
+number of articles that are shared for higher share ranges increase; if
+the bars go down, then the number of articles share for higher share
+ranges decrease, and if the bars do neither, then there is no clear
+linear trend.
 
 ``` r
 bar_data <- subset_channel %>%
@@ -556,17 +602,23 @@ the `labs()` function.
 Because the distribution of shares could be highly skewed, there may be
 many outliers and the box plot may not be visually appealing or useful.
 Although outliers should not be removed without cause, to gain a better
-view of the data, a consideration may be to view the box plot without
+view of the data, one consideration is to view the box plot without
 them. A similar box plot with the same syntax, but adding a coordinate
 layer with `coord_cartesian()` is generated, specifying the `ylim`
 argument to range from 0 to the 90th percentile of `shares` to show a
 better scale that hides some outliers. Many points above the boxes, a
 long tail above the box plots, or the median line being located towards
 the bottom of the boxes could indicate positive skew. Points towards the
-bottom would, a long tail below the box plots, or the median line being
+bottom, a long tail below the box plots, or the median line being
 indicated towards the top of the boxes could indicate negative skew.
 Relatively symmetric tails, a median close to the center of the boxes,
-and few outliers would indicate a symmetric distribution.
+and few outliers would indicate a symmetric distribution. If the size of
+the box or the length of its tail for the number of images being 0 is
+larger/longer, then there is more variability in the number of shares
+for articles with 0 images when compared to those with 1 or more. If the
+boxes and tails are smaller/shorter, then there is less variability in
+the number of shares for articles with 0 images when compared to those 1
+or more.
 
 ``` r
 img_split <- cut(subset_channel$num_imgs, 
@@ -595,7 +647,7 @@ g + geom_boxplot(aes(color = img_split)) +
 
 ## Scatter plot
 
-It may be interesting to consider the average number of shares across
+Another view to consider is the average number of shares across
 variables. First, the data is summarized by using the `group_by`
 function on `num_hrefs` to create a grouping by number of links, then,
 the `summarize()` function calls the `mean()` function to take the
@@ -618,7 +670,7 @@ number of links or images in articles, and a trend of points moving
 downwards from right to left would indicate the average number of shares
 decreases with the number of the number of links or images in articles.
 Points having no general direction would indicate little or no trend in
-linearity.
+a linear relationship.
 
 ``` r
 avg_links <- subset_channel %>%
@@ -653,15 +705,16 @@ g + geom_point(aes(x = num_imgs, y = avg_shares), color = "blue") +
 ## Regression
 
 **Explanation**: Linear regression is a supervised learning technique
-where the value of the of a response variable is modeled or predicted by
-an explanatory variable by fitting a linear equation to observed data.
-The equation of the line can be modeled generically by:
+where the value of a response variable is modeled or predicted by an
+explanatory variable by fitting a linear equation to observed data. The
+equation of the line can be modeled generically by:
 `Y~i~ = B~0~ + B~1~x~i~ + E~i~ where Y~i~` is the response for the
 i<sup>th</sup> observation, `x~i~` is the value of the explanatory
 variable for the i<sup>th</sup> observation, `B~0~` is the y-intercept,
-`B~1~` is the slope, and `E~i~` is the error. The line of best fit is
-found by minimizing the sum of squared differences between the observed
-values and the predicted values on the line itself.
+`B~1~` is the slope, and `E~i~` is the error. The modeling is considered
+because the coefficients are linear. The line of best fit is found by
+minimizing the sum of squared differences between the observed values
+and the predicted values on the line itself.
 
 To model the data, first it needs to be split into a training set and
 test set. The `createDataPartition()` takes the `shares` variable and
@@ -675,13 +728,17 @@ indices that were not sampled.
 
 The `train()` function fits a multiple linear regression model of
 `shares`, modeled by the remaining main effect terms of the variables
-chosen during the correlation section above. The data used is the
-training set, and the `method` argument is passed “lm” to indicate a
-linear model. The model is saved as `mlr`.
+chosen during the correlation section above using the `~` function. All
+variables are chosen because it is not clear which are needed for the
+best results. The data used is the training set, and the `method`
+argument is passed `"lm"` to indicate a linear model. The model is saved
+as `mlr`.
 
 A second multiple linear regression model is fitted using the same
 methodology and syntax, but uses all main effects and all interaction
-terms via `~.^2` in the formula argument.
+terms via `~.^2` in the formula argument. This serves as a contrasting
+model to determine whether or not including all interactions improves
+predictions.
 
 ``` r
 dataIndex <- createDataPartition(subset_channel$shares, p = 0.7, list = FALSE)
@@ -699,15 +756,15 @@ mlr2<- train(shares ~.^2, data = dataTrain, method ="lm")
 **Explanation:** A random forest model is an ensemble learning method
 where many trees are fitted and their results are averaged. The basic
 concept is that given a sample, that sample is resampled in the same
-manner as the original repeatedly. The samples are taken with
-replacement, so that duplicate observations may be present, and some
-observations may be omitted. A tree is then trained on each sample,
-called a bootstrap sample, using a random subset of the variables. This
-is done to reduce variance; if a dominant predictor is present most of
-the trees will use the same first splits, and will be highly correlated.
-After all of the predictions are done, the final predictions are the
-average of all the individual tree predictions, or if using
-classification, the final prediction is the majority vote by all trees.
+manner as the original, repeatedly. The samples, called bootstrap
+samples, are taken with replacement, so that duplicate observations may
+be present, and some observations may be omitted. A tree is then trained
+on each sample, using a random subset of the variables. This is done to
+reduce variance; if a dominant predictor is present most of the trees
+will use the same first splits, and will be highly correlated. After all
+of the predictions are done, the final predictions are the average of
+all individual tree predictions, or if using classification, the final
+prediction is the majority vote by all trees.
 
 Before fitting the tree model, a random number generator seed is first
 set to reproduce the random aspects of the training. The `train()`
@@ -742,13 +799,14 @@ rfFit <- train(shares ~ ., data = dataTrain,
 wherein trees are fitted sequentially, and each tree is fitted based on
 the previous one, updated by predictions each time. The general concept
 is that the trees are fitted, given a specified number of splits, based
-on residuals of predictions that are updated slowly. In detail, first
-the predictions are initialized to 0, then the residuals are calculated,
-then trees are fitted on the residuals, then the predictions are updated
-to the predictions prior to the residuals prior to the fitting plus the
-new predictions multiplied by a shrinkage parameter to slow the growth.
-Then, the residuals to fit the next tree on are updated from the new
-predictions, an the process repeats until a predefined stopping point.
+on residuals of predictions, which are updated slowly. In more detail,
+first the predictions are initialized to 0, then the residuals are
+calculated and trees are fitted on the residuals, then the predictions
+are updated to the predictions prior to the residuals prior to the
+fitting plus the new predictions multiplied by a shrinkage parameter to
+slow the growth. Lastly, the residuals used to fit the next tree on are
+updated from the new predictions, and the process repeats until a
+predefined stopping point.
 
 Before fitting the boosted tree, a grid of tuning parameters is
 generated with the `expand.grid()` function, which outputs all possible
@@ -804,16 +862,17 @@ argument as the true responses. The RMSE, Rsquared, and MAE are saved
 for each model, simplified on output, and saved. The `which.min()`
 function returns the name and index of the model with the minimum RMSE,
 accessing the first row of the table of evaluation results, as RMSE is
-the metric being used to evaluate the ‘best’ model. The best model is
+the metric being used to evaluate the ‘best’ model. The ‘best’ model is
 then saved by using bracket notation and the index. A list is returned
 from the function with the results of testing all models, the results of
-the ‘best’ model, and the name of the best model.
+the ‘best’ model, and the name of the ‘best’ model.
 
-To apply the function, a named list of all the models created in this
+To apply the function, a named list of all of the models created in this
 document is produced and saved, then the `pred_eval()` function takes
 that list, the test data, and the vector of observed responses as
 arguments, and predicts on and evaluates the models. The output is then
-printed for viewing.
+printed for viewing, and the compared metrics are output in a table for
+better display.
 
 ``` r
 #change RHS of rfFit before submitting; used as-is for testing
@@ -847,6 +906,16 @@ comp_results
     ## 
     ## [[3]]
     ## [1] "mlr2"
+
+``` r
+knitr::kable(comp_results[[1]])
+```
+
+|          |          mlr |         mlr2 |        btFit |        rfFit |
+|:---------|-------------:|-------------:|-------------:|-------------:|
+| RMSE     | 9808.2389586 | 9798.2473566 | 9839.7023535 | 9808.2389586 |
+| Rsquared |    0.0010031 |    0.0037564 |    0.0021301 |    0.0010031 |
+| MAE      | 3367.5768879 | 3323.8971200 | 3347.5878023 | 3367.5768879 |
 
 From the results, the ‘best’ model of the four fits based on RMSE
 prediction error is mlr2 with an RMSE of 9798.2473566.
