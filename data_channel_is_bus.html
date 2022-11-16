@@ -1414,16 +1414,13 @@ testing data later. <code>tuneGrid</code> passes a data frame of tuning
 parameters; for random forests, the parameters are the number of random
 variables to try, labeled as <code>mtry</code>, and given as a sequence.
 The fit is then saved.</p>
-<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Set eval = FALSE to test</span></span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co">#random Forest</span></span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co">#updated number to 3 to run faster, can change to 5 before submission.</span></span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">99</span>)</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>rfFit <span class="ot">&lt;-</span> <span class="fu">train</span>(shares <span class="sc">~</span> ., <span class="at">data =</span> dataTrain,</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>               <span class="at">method =</span> <span class="st">&quot;rf&quot;</span>,</span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>               <span class="at">trControl =</span> <span class="fu">trainControl</span>(<span class="at">method =</span> <span class="st">&quot;cv&quot;</span>,</span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">number =</span> <span class="dv">3</span>),</span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>               <span class="at">preProcess =</span> <span class="fu">c</span>(<span class="st">&quot;center&quot;</span>, <span class="st">&quot;scale&quot;</span>),</span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>               <span class="at">tuneGrid =</span> <span class="fu">data.frame</span>(<span class="at">mtry =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>))</span></code></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">99</span>)</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>rfFit <span class="ot">&lt;-</span> <span class="fu">train</span>(shares <span class="sc">~</span> ., <span class="at">data =</span> dataTrain,</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>               <span class="at">method =</span> <span class="st">&quot;rf&quot;</span>,</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>               <span class="at">trControl =</span> <span class="fu">trainControl</span>(<span class="at">method =</span> <span class="st">&quot;cv&quot;</span>,</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>                                        <span class="at">number =</span> <span class="dv">5</span>),</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>               <span class="at">preProcess =</span> <span class="fu">c</span>(<span class="st">&quot;center&quot;</span>, <span class="st">&quot;scale&quot;</span>),</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>               <span class="at">tuneGrid =</span> <span class="fu">data.frame</span>(<span class="at">mtry =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">6</span>))</span></code></pre></div>
 <h3 id="boosted-trees">Boosted Trees</h3>
 <p><strong>Explanation:</strong> A boosted tree model is an ensemble
 learning method wherein trees are fitted sequentially, and each tree is
@@ -1501,28 +1498,27 @@ function takes that list, the test data, and the vector of observed
 responses as arguments, and predicts on and evaluates the models. The
 output is then printed for viewing, and the compared metrics are output
 in a table for better display.</p>
-<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="co">#change RHS of rfFit before submitting; used as-is for testing</span></span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>pred_eval <span class="ot">&lt;-</span> <span class="cf">function</span>(models, newdata, obs){</span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  names <span class="ot">&lt;-</span> <span class="fu">names</span>(models)</span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  preds <span class="ot">&lt;-</span> <span class="fu">lapply</span>(models, <span class="at">FUN =</span> predict, newdata)</span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  evals <span class="ot">&lt;-</span> <span class="fu">sapply</span>(preds, <span class="at">FUN =</span> postResample, obs)</span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  index <span class="ot">&lt;-</span> <span class="fu">which.min</span>(evals[<span class="dv">1</span>, ])</span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  best <span class="ot">&lt;-</span> evals[ ,index]</span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">list</span>(evals, best, names[index]))</span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mlr =</span> mlr, <span class="at">mlr2 =</span> mlr2, <span class="at">btFit =</span> btFit, <span class="at">rfFit =</span> mlr)</span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>comp_results <span class="ot">&lt;-</span> <span class="fu">pred_eval</span>(models, dataTest, dataTest<span class="sc">$</span>shares)</span>
-<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>comp_results</span></code></pre></div>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>pred_eval <span class="ot">&lt;-</span> <span class="cf">function</span>(models, newdata, obs){</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  names <span class="ot">&lt;-</span> <span class="fu">names</span>(models)</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  preds <span class="ot">&lt;-</span> <span class="fu">lapply</span>(models, <span class="at">FUN =</span> predict, newdata)</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  evals <span class="ot">&lt;-</span> <span class="fu">sapply</span>(preds, <span class="at">FUN =</span> postResample, obs)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  index <span class="ot">&lt;-</span> <span class="fu">which.min</span>(evals[<span class="dv">1</span>, ])</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  best <span class="ot">&lt;-</span> evals[ ,index]</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fu">list</span>(evals, best, names[index]))</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">mlr =</span> mlr, <span class="at">mlr2 =</span> mlr2, <span class="at">btFit =</span> btFit, <span class="at">rfFit =</span> rfFit)</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>comp_results <span class="ot">&lt;-</span> <span class="fu">pred_eval</span>(models, dataTest, dataTest<span class="sc">$</span>shares)</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>comp_results</span></code></pre></div>
 <pre><code>## [[1]]
 ##                   mlr         mlr2        btFit
 ## RMSE     6.119021e+03 2.939686e+04 5.574577e+03
 ## Rsquared 2.519884e-02 1.148079e-03 6.400468e-02
 ## MAE      2.572982e+03 4.482427e+03 2.568302e+03
 ##                 rfFit
-## RMSE     6.119021e+03
-## Rsquared 2.519884e-02
-## MAE      2.572982e+03
+## RMSE     5.994657e+03
+## Rsquared 3.147385e-02
+## MAE      2.451670e+03
 ## 
 ## [[2]]
 ##         RMSE     Rsquared          MAE 
@@ -1547,21 +1543,21 @@ in a table for better display.</p>
 <td align="right">6119.0208450</td>
 <td align="right">2.939686e+04</td>
 <td align="right">5574.5771713</td>
-<td align="right">6119.0208450</td>
+<td align="right">5994.6573353</td>
 </tr>
 <tr class="even">
 <td align="left">Rsquared</td>
 <td align="right">0.0251988</td>
 <td align="right">1.148100e-03</td>
 <td align="right">0.0640047</td>
-<td align="right">0.0251988</td>
+<td align="right">0.0314739</td>
 </tr>
 <tr class="odd">
 <td align="left">MAE</td>
 <td align="right">2572.9823302</td>
 <td align="right">4.482427e+03</td>
 <td align="right">2568.3019344</td>
-<td align="right">2572.9823302</td>
+<td align="right">2451.6704047</td>
 </tr>
 </tbody>
 </table>

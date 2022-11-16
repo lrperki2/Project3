@@ -469,15 +469,12 @@ the testing data later. `tuneGrid` passes a data frame of tuning parameters; for
 random forests, the parameters are the number of random variables to try, 
 labeled as `mtry`, and given as a sequence. The fit is then saved.
 
-```{r, eval = FALSE}
-#Set eval = FALSE to test
-#random Forest
-#updated number to 3 to run faster, can change to 5 before submission.
+```{r}
 set.seed(99)
 rfFit <- train(shares ~ ., data = dataTrain,
                method = "rf",
                trControl = trainControl(method = "cv",
-                                        number = 3),
+                                        number = 5),
                preProcess = c("center", "scale"),
                tuneGrid = data.frame(mtry = 1:6))
 ```
@@ -557,7 +554,6 @@ on and evaluates the models. The output is then printed for viewing, and
 the compared metrics are output in a table for better display.
 
 ```{r}
-#change RHS of rfFit before submitting; used as-is for testing
 pred_eval <- function(models, newdata, obs){
   names <- names(models)
   preds <- lapply(models, FUN = predict, newdata)
@@ -567,7 +563,7 @@ pred_eval <- function(models, newdata, obs){
   return(list(evals, best, names[index]))
 }
 
-models <- list(mlr = mlr, mlr2 = mlr2, btFit = btFit, rfFit = mlr)
+models <- list(mlr = mlr, mlr2 = mlr2, btFit = btFit, rfFit = rfFit)
 comp_results <- pred_eval(models, dataTest, dataTest$shares)
 comp_results
 knitr::kable(comp_results[[1]])

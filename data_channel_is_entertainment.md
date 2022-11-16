@@ -781,14 +781,11 @@ random variables to try, labeled as `mtry`, and given as a sequence. The
 fit is then saved.
 
 ``` r
-#Set eval = FALSE to test
-#random Forest
-#updated number to 3 to run faster, can change to 5 before submission.
 set.seed(99)
 rfFit <- train(shares ~ ., data = dataTrain,
                method = "rf",
                trControl = trainControl(method = "cv",
-                                        number = 3),
+                                        number = 5),
                preProcess = c("center", "scale"),
                tuneGrid = data.frame(mtry = 1:6))
 ```
@@ -875,7 +872,6 @@ printed for viewing, and the compared metrics are output in a table for
 better display.
 
 ``` r
-#change RHS of rfFit before submitting; used as-is for testing
 pred_eval <- function(models, newdata, obs){
   names <- names(models)
   preds <- lapply(models, FUN = predict, newdata)
@@ -885,7 +881,7 @@ pred_eval <- function(models, newdata, obs){
   return(list(evals, best, names[index]))
 }
 
-models <- list(mlr = mlr, mlr2 = mlr2, btFit = btFit, rfFit = mlr)
+models <- list(mlr = mlr, mlr2 = mlr2, btFit = btFit, rfFit = rfFit)
 comp_results <- pred_eval(models, dataTest, dataTest$shares)
 comp_results
 ```
@@ -896,9 +892,9 @@ comp_results
     ## Rsquared 9.317713e-02    0.1027206 4.357907e-02
     ## MAE      2.706248e+03 2751.6033550 2.723221e+03
     ##                 rfFit
-    ## RMSE     6.755002e+03
-    ## Rsquared 9.317713e-02
-    ## MAE      2.706248e+03
+    ## RMSE     6907.3156277
+    ## Rsquared    0.0359896
+    ## MAE      2729.1908369
     ## 
     ## [[2]]
     ##         RMSE     Rsquared          MAE 
@@ -913,9 +909,9 @@ knitr::kable(comp_results[[1]])
 
 |          |          mlr |         mlr2 |        btFit |        rfFit |
 |:---------|-------------:|-------------:|-------------:|-------------:|
-| RMSE     | 6755.0017918 | 6674.3424431 | 6869.5963586 | 6755.0017918 |
-| Rsquared |    0.0931771 |    0.1027206 |    0.0435791 |    0.0931771 |
-| MAE      | 2706.2483407 | 2751.6033550 | 2723.2213406 | 2706.2483407 |
+| RMSE     | 6755.0017918 | 6674.3424431 | 6869.5963586 | 6907.3156277 |
+| Rsquared |    0.0931771 |    0.1027206 |    0.0435791 |    0.0359896 |
+| MAE      | 2706.2483407 | 2751.6033550 | 2723.2213406 | 2729.1908369 |
 
 From the results, the ‘best’ model of the four fits based on RMSE
 prediction error is mlr2 with an RMSE of 6674.3424431.
